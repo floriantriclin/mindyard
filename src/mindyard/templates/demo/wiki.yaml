@@ -1,0 +1,18 @@
+# Demo vault: an imaginary community garden. Everything in it is fictitious.
+mindyard: 1
+label: "$label"
+description: Plants, practices and events of the Harbor Lane community garden.
+
+entities:
+  plant:
+    required: [title, family]
+    status: [planned, growing, harvested, retired]
+  event:
+    required: [title, start_date]
+    status: [upcoming, ongoing, past]
+    status_from_dates: {start: start_date, end: end_date}
+
+lint:
+  orphans:
+    exempt: []
+  index_entry_max_chars: 160

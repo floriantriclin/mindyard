@@ -1,0 +1,225 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+"""The MCP surface: six tools over the caller's wikis.
+
+A thin layer. Each tool reads the tenant bound to the request, validates the
+``wiki`` argument against that tenant's wikis only, and delegates to
+:mod:`mindyard.core.operations`. Domain errors become ``ToolError`` with their
+message verbatim (they never carry server paths).
+"""
+
+from __future__ import annotations
+
+import functools
+from collections.abc import Callable
+from pathlib import Path
+from typing import Any
+
+from fastmcp import FastMCP
+from fastmcp.exceptions import ToolError
+from mcp.types import Icon, ToolAnnotations
+from starlette.requests import Request
+from starlette.responses import FileResponse
+
+from mindyard import __version__
+from mindyard.auth import AccessPolicy, AuthBackend
+from mindyard.core import operations
+from mindyard.core.config import WikiConfig
+from mindyard.core.errors import MindyardError
+from mindyard.core.search import SearchHit
+from mindyard.identity import git_author
+from mindyard.tenancy import TenantResolver, current_tenant
+
+from .middleware import TenantGateMiddleware, current_identity
+from .telemetry import ToolCallLogMiddleware
+
+_STATIC = Path(__file__).resolve().parent.parent / "static"
+# Public routes, like a health check: clients show the icon before signing in.
+_ICONS = {
+    "/icon-96.png": ("icon-96.png", "image/png"),
+    "/favicon.ico": ("icon-96.png", "image/png"),
+    "/icon.svg": ("icon.svg", "image/svg+xml"),
+}
+
+# Delivered in the MCP ``initialize`` response, so the protocol reaches the model
+# even when no client-side skill is loaded. The tool docstrings repeat the rules,
+# since the tool schema is always delivered.
+SERVER_INSTRUCTIONS = """\
+mindyard: personal Markdown knowledge bases (wikis), each a git repository.
+
+Routing: call list_wikis first; pick ONE wiki and pass it on every call. Read
+its schema file (schema.md by default) before writing: it holds the wiki's
+domain and conventions. Before any write_batch, present the plan to the user
+(target wiki, every operation, and the split if several batches are needed,
+with index and log in the last) and proceed only on explicit agreement.
+
+Reading vs editing: read_page renders for display (wikilinks stripped); never
+show '[[...]]' to the user. To edit a page you MUST first read it with raw=True
+to get the verbatim bytes AND its version; build the edit on those bytes and
+pass the version back as expected_version.
+
+Writing (write_batch, the only write path): a list of typed ops applied
+atomically in one commit: create / overwrite / replace / delete / rename.
+Prefer replace (surgical) over overwrite. Modifying, deleting or renaming an
+existing file requires expected_version from read_page; a stale token is
+rejected, so re-read and rebuild. raw/ is create-only. The log, index and
+schema files cannot be deleted or renamed; the log grows by replacing its
+sentinel line. Writes are confined to the wiki and raw zones plus the
+index/log/schema files; wiki.yaml is read-only. Include a log entry in the same
+batch.
+"""
+
+
+def _tool_errors[F: Callable[..., object]](fn: F) -> F:
+    @functools.wraps(fn)
+    def wrapper(*args: object, **kwargs: object) -> object:
+        try:
+            return fn(*args, **kwargs)
+        except MindyardError as exc:
+            raise ToolError(str(exc)) from exc
+
+    return wrapper  # type: ignore[return-value]
+
+
+def _wiki(wiki: str) -> WikiConfig:
+    """The caller's wiki ``wiki``. Never another tenant's."""
+    return current_tenant().wiki_set().get_wiki(wiki)
+
+
+def _read_only(title: str) -> ToolAnnotations:
+    return ToolAnnotations(title=title, readOnlyHint=True, openWorldHint=False)
+
+
+def build_server(
+    backend: AuthBackend,
+    policy: AccessPolicy,
+    resolver: TenantResolver,
+    *,
+    telemetry: bool = True,
+    website_url: str | None = None,
+) -> FastMCP[Any]:
+    mcp: FastMCP[Any] = FastMCP(
+        "mindyard",
+        version=__version__,
+        instructions=SERVER_INSTRUCTIONS,
+        mask_error_details=True,
+        auth=backend.provider(),
+        website_url=website_url,
+        icons=(
+            [Icon(src=f"{website_url}/icon-96.png", mimeType="image/png", sizes=["96x96"])]
+            if website_url
+            else None
+        ),
+    )
+    if telemetry:
+        mcp.add_middleware(ToolCallLogMiddleware())
+    mcp.add_middleware(TenantGateMiddleware(backend, policy, resolver))
+
+    for route, (filename, media_type) in _ICONS.items():
+
+        async def icon(
+            _request: Request, filename: str = filename, media_type: str = media_type
+        ) -> FileResponse:
+            return FileResponse(_STATIC / filename, media_type=media_type)
+
+        mcp.custom_route(route, methods=["GET"])(icon)
+
+    @mcp.tool(annotations=_read_only("List wikis"))
+    @_tool_errors
+    def list_wikis() -> list[dict[str, str]]:
+        """List your wikis as {id, label, description}."""
+        wikis = current_tenant().wikis
+        return [
+            {
+                "id": wid,
+                "label": w.config.label,
+                "description": w.config.description,
+            }
+            for wid, w in sorted(wikis.items())
+        ]
+
+    @mcp.tool(annotations=_read_only("Read page"))
+    @_tool_errors
+    def read_page(
+        wiki: str, path: str, raw: bool = False, offset: int = 1, limit: int | None = None
+    ) -> dict[str, object]:
+        """Read a file in the target wiki (confined to its root).
+
+        Default: rendered for display, Obsidian wikilinks stripped, so never show
+        '[[...]]' to the user. Pass raw=True to get the verbatim bytes before
+        editing a page, so write_batch keeps the '[[...]]' syntax on disk.
+
+        offset is 1-based and limit caps the lines returned. Returns {content,
+        version, total_lines, start_line, end_line, truncated}. Pass 'version'
+        back as 'expected_version' when modifying this page.
+        """
+        return dict(operations.read_page(_wiki(wiki), path, raw, offset, limit))
+
+    @mcp.tool(annotations=_read_only("List pages"))
+    @_tool_errors
+    def list_pages(
+        wiki: str, scope: str = "wiki", prefix: str = "", limit: int = 200
+    ) -> dict[str, object]:
+        """List .md files in a zone ('wiki', 'raw' or 'all').
+
+        Returns {pages, truncated, total}; pages is sorted and capped at limit.
+        """
+        return dict(operations.list_pages(_wiki(wiki), scope, prefix, limit))
+
+    @mcp.tool(annotations=_read_only("Search wiki"))
+    @_tool_errors
+    def search_wiki(
+        wiki: str, query: str, scope: str = "wiki", max_results: int = 30, regex: bool = False
+    ) -> list[SearchHit]:
+        """Case-insensitive full-text search; returns [{page, line, text}].
+
+        regex=False (default) matches query literally; regex=True treats it as a
+        regular expression.
+        """
+        return list(operations.search_wiki(_wiki(wiki), query, scope, max_results, regex))
+
+    @mcp.tool(annotations=_read_only("Lint report"))
+    @_tool_errors
+    def get_lint_report(wiki: str) -> str:
+        """Return the target wiki's lint report, or a message if there is none."""
+        return operations.get_lint_report(_wiki(wiki))
+
+    @mcp.tool(
+        annotations=ToolAnnotations(
+            title="Write batch (commits changes)",
+            readOnlyHint=False,
+            destructiveHint=True,
+            idempotentHint=False,
+            openWorldHint=False,
+        )
+    )
+    @_tool_errors
+    def write_batch(
+        wiki: str, edits: list[operations.Operation], message: str
+    ) -> dict[str, object]:
+        """Transactionally apply typed edit operations in one git commit.
+
+        Call it only after the user agreed to the plan (target wiki, every
+        operation, any split into several batches). Keep each call under about
+        30 kB of arguments: split up front, with index and log in the last batch.
+
+        Each edit is one {op, ...}, applied in order (chained on the same path):
+        - create:    {op, path, content}; fails if the path exists.
+        - overwrite: {op, path, content, expected_version}; full rewrite.
+        - replace:   {op, path, old, new, expected_version, replace_all?};
+          surgical edit, 'old' must be unique unless replace_all=true. Read the
+          page with raw=True first so 'old' matches the bytes on disk.
+        - delete:    {op, path, expected_version}.
+        - rename:    {op, path, new_path, expected_version}; wikilinks to the old
+          name are not rewritten, fix them with replace ops in the same batch.
+
+        expected_version is the token from read_page; required to modify, delete
+        or rename an existing file, ignored for a path created earlier in this
+        batch. Writes stay under the wiki and raw zones or the index/log/schema
+        files; raw/ is create-only; the log, index and schema cannot be deleted or
+        renamed. Everything is validated first: on any failure nothing is written
+        or committed. Returns {commit, applied}.
+        """
+        author = git_author(current_identity())
+        return dict(operations.write_batch(_wiki(wiki), edits, message, author))
+
+    return mcp

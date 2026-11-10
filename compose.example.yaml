@@ -1,0 +1,18 @@
+# Copy to compose.yaml and adjust. Secrets go in a .env file next to it.
+services:
+  mindyard:
+    build: .
+    restart: unless-stopped
+    # Run as the user that owns ./data, so vault files stay editable on the host.
+    user: "1000:1000"
+    ports:
+      - "127.0.0.1:8787:8787"  # put a TLS reverse proxy in front
+    volumes:
+      - ./data:/data  # vaults/, tokens.yaml and state/ (OAuth state: not a cache)
+    environment:
+      MINDYARD_AUTH: bearer  # or google
+      # For google, also:
+      # MINDYARD_BASE_URL: https://wiki.example.org
+      # MINDYARD_GOOGLE_CLIENT_ID: ${MINDYARD_GOOGLE_CLIENT_ID}
+      # MINDYARD_GOOGLE_CLIENT_SECRET: ${MINDYARD_GOOGLE_CLIENT_SECRET}
+      # MINDYARD_ALLOWED_EMAILS: you@example.org

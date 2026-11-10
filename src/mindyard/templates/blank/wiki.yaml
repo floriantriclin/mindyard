@@ -1,0 +1,18 @@
+# mindyard vault configuration: enforced by the server and the linter.
+# This file is read-only for the model; edit it yourself.
+mindyard: 1
+label: "$label"
+description: ""
+
+# Entity kinds checked by the linter, keyed by the `entity_kind` frontmatter field.
+# entities:
+#   book:
+#     required: [title, author]
+#     status: [to-read, reading, read]
+#   event:
+#     status: [upcoming, ongoing, past]
+#     status_from_dates: {start: start_date, end: end_date}
+
+lint:
+  orphans:
+    exempt: []
