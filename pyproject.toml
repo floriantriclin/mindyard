@@ -38,7 +38,7 @@ path = "src/mindyard/__init__.py"
 packages = ["src/mindyard"]
 
 [tool.hatch.build.targets.sdist]
-exclude = ["CLAUDE.md"]
+exclude = ["CLAUDE.md", "site"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
