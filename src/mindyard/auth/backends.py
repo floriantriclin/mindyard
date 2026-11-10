@@ -18,6 +18,8 @@ from fastmcp.server.auth.providers.google import GoogleProvider
 from mindyard.identity import Identity
 
 from .consent import StableConsentMixin
+from .gate import CallbackGateMixin
+from .policy import AccessPolicy
 from .tokens import BEARER_ISSUER, HashedTokenVerifier, TokenStore
 
 GOOGLE_ISSUER = "https://accounts.google.com"
@@ -119,11 +121,17 @@ class StableConsentGoogleProvider(StableConsentMixin, GoogleProvider):
     """Google OAuth proxy whose consent page tolerates a second load."""
 
 
+class GatedGoogleProvider(CallbackGateMixin, StableConsentGoogleProvider):
+    """The same proxy, refusing an identity the policy denies at the callback."""
+
+
 class GoogleAuth:
     """OAuth through Google, proxied by FastMCP so Claude.ai can connect.
 
     The proxy persists client registrations and tokens under FastMCP's home
-    directory: losing it forces every client to sign in again.
+    directory: losing it forces every client to sign in again. Given the access
+    policy, it also refuses a denied account at the callback, before the client
+    holds a token.
     """
 
     name = "google"
@@ -134,19 +142,27 @@ class GoogleAuth:
         client_secret: str,
         base_url: str,
         redirect_path: str = "/auth/callback",
+        policy: AccessPolicy | None = None,
     ) -> None:
         self._client_id = client_id
         self._client_secret = client_secret
         self._base_url = base_url
         self._redirect_path = redirect_path
+        self._policy = policy
 
     def provider(self) -> AuthProvider | None:
-        return StableConsentGoogleProvider(
-            client_id=self._client_id,
-            client_secret=self._client_secret,
-            base_url=self._base_url,
-            redirect_path=self._redirect_path,
-            required_scopes=list(GOOGLE_SCOPES),
+        options: dict[str, Any] = {
+            "client_id": self._client_id,
+            "client_secret": self._client_secret,
+            "base_url": self._base_url,
+            "redirect_path": self._redirect_path,
+            "required_scopes": list(GOOGLE_SCOPES),
+        }
+        policy = self._policy
+        if policy is None:
+            return StableConsentGoogleProvider(**options)
+        return GatedGoogleProvider(
+            admit=lambda token: policy.allows(self.identity(token)), **options
         )
 
     def identity(self, token: AccessToken | None) -> Identity | None:

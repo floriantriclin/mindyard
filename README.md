@@ -18,12 +18,12 @@ the bookkeeping that keeps the wiki trustworthy, and no model runs on it:
   your `wiki.yaml` declares (required fields, closed status lists, statuses
   implied by dates).
 
-Status: pre-release (0.1 in development).
+Status: early release (0.1).
 
 ## Quickstart
 
 ```bash
-# not on PyPI yet: from a checkout, run `uv sync` and prefix commands with `uv run`
+uv tool install mindyard        # or prefix each command with `uvx`, or `pip install mindyard`
 mindyard init ./data/vaults/garden --demo
 mindyard lint ./data/vaults/garden
 MINDYARD_DATA_ROOT=./data mindyard serve   # http://127.0.0.1:8787/mcp, no auth, loopback only
@@ -52,7 +52,7 @@ Set `MINDYARD_AUTH`:
 |---|---|---|
 | `none` | local use | refuses to listen beyond loopback |
 | `bearer` | Claude Code, Claude Desktop, scripts | `mindyard token new laptop` prints a token once; only its SHA-256 is stored |
-| `google` | Claude.ai (OAuth) | needs `MINDYARD_BASE_URL`, `MINDYARD_GOOGLE_CLIENT_ID`, `MINDYARD_GOOGLE_CLIENT_SECRET`, `MINDYARD_ALLOWED_EMAILS` |
+| `google` | Claude.ai (OAuth) | needs `MINDYARD_BASE_URL`, `MINDYARD_GOOGLE_CLIENT_ID`, `MINDYARD_GOOGLE_CLIENT_SECRET`, `MINDYARD_ALLOWED_EMAILS`; an account off the list is refused at sign-in |
 
 Claude Code with a bearer token:
 

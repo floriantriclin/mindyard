@@ -47,7 +47,10 @@ def build_backend(settings: Settings) -> AuthBackend:
     if settings.auth == "google":
         assert settings.google_client_id and settings.google_client_secret and settings.base_url
         return GoogleAuth(
-            settings.google_client_id, settings.google_client_secret, settings.base_url
+            settings.google_client_id,
+            settings.google_client_secret,
+            settings.base_url,
+            policy=build_policy(settings),
         )
     return NoAuth()
 

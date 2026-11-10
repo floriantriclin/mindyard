@@ -1,6 +1,6 @@
 [project]
 name = "mindyard"
-version = "0.1.0.dev0"
+dynamic = ["version"]
 description = "Your personal LLM wiki: a git-versioned Markdown vault served over MCP"
 readme = "README.md"
 license = "AGPL-3.0-or-later"
@@ -31,8 +31,14 @@ dev = [
 requires = ["hatchling>=1.26"]
 build-backend = "hatchling.build"
 
+[tool.hatch.version]
+path = "src/mindyard/__init__.py"
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/mindyard"]
+
+[tool.hatch.build.targets.sdist]
+exclude = ["CLAUDE.md"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
