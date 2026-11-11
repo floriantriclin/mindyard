@@ -219,11 +219,11 @@ class Operation(TypedDict):
     - ``create``    : ``path``, ``content``
     - ``overwrite`` : ``path``, ``content``, ``expected_version``
     - ``replace``   : ``path``, ``old``, ``new``, ``expected_version`` (``replace_all``)
-    - ``delete``    : ``path``
-    - ``rename``    : ``path``, ``new_path``
+    - ``delete``    : ``path``, ``expected_version``
+    - ``rename``    : ``path``, ``new_path``, ``expected_version``
 
     ``expected_version`` is the optimistic-concurrency token from ``read_page``;
-    it is required on ``replace``/``overwrite`` of an existing file and ignored
+    it is required to modify, delete or rename an existing file and ignored
     when the target was created earlier in the same batch.
     """
 
