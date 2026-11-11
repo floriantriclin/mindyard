@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Tests for the read operations: read_page, list_pages, get_lint_report."""
+"""Tests for the read operations: read_page, list_pages."""
 
 from __future__ import annotations
 
@@ -162,16 +162,3 @@ def test_list_pages_scoped_to_wiki_only(wikis: WikiSet, wiki_roots: dict[str, Pa
     _write(wiki_roots["beta"], "wiki/beta-page.md")
     assert operations.list_pages(wikis["alpha"])["pages"] == ["wiki/alpha-page.md"]
     assert operations.list_pages(wikis["beta"])["pages"] == ["wiki/beta-page.md"]
-
-
-# --- get_lint_report --------------------------------------------------------
-
-
-def test_get_lint_report_absent_message(wikis: WikiSet) -> None:
-    msg = operations.get_lint_report(wikis["alpha"])
-    assert "No lint report" in msg
-
-
-def test_get_lint_report_returns_file(wikis: WikiSet, wiki_roots: dict[str, Path]) -> None:
-    (wiki_roots["alpha"] / "LINT_REPORT.md").write_text("# Lint\nok\n", encoding="utf-8")
-    assert operations.get_lint_report(wikis["alpha"]) == "# Lint\nok\n"

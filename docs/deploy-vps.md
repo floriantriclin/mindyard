@@ -161,8 +161,8 @@ Claude.ai opens the Google sign-in. Once you are back, ask Claude to list your w
 - **Backups:** the vaults are git repositories; push them to a private remote, or back
   up `/var/lib/mindyard/data`. Its `state/` directory holds OAuth registrations and
   tokens: it is not a cache, and deleting it signs every client out.
-- **Lint:** `mindyard lint <vault>` writes the report that `get_lint_report` returns; run
-  it from cron if you want it fresh.
+- **Lint:** `get_lint_report` lints the wiki at each call. `mindyard lint <vault>` runs
+  the same checks from the shell and writes `LINT_REPORT.md`.
 - **Logs:** a few `400 Missing session ID` lines when Claude.ai connects are expected:
   the client probes before opening a session.
 - **Docker** instead of systemd: `compose.example.yaml` in the repository runs the same

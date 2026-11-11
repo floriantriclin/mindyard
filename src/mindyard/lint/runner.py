@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Run the checks against a vault on disk and write its report.
 
-Reads the wiki zone, the index and ``raw/``; writes ``LINT_REPORT.md`` at the
-vault root (outside the write zones, readable through ``get_lint_report``).
+Reads the wiki zone, the index and ``raw/``. ``get_lint_report`` renders a fresh
+report at each call; the ``mindyard lint`` command also writes it to
+``LINT_REPORT.md`` at the vault root (outside the write zones).
 ``fix_table_pipes`` is the only automatic repair: it is deterministic,
 idempotent and semantically inert. Everything else needs an editorial decision.
 """

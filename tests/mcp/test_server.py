@@ -223,3 +223,19 @@ async def test_commits_are_authored_by_a_verified_caller(tmp_path: Path) -> None
         "mindyard-test <test@example.invalid>|mindyard-test",
         "Ada North <ada@example.org>|mindyard-test",
     ]
+
+
+async def test_lint_report_reflects_the_vault_at_the_call(
+    single: FastMCP[Any], tmp_path: Path
+) -> None:
+    root = tmp_path / "vaults" / "notes"
+    async with Client(single) as client:
+        before = _data(await client.call_tool("get_lint_report", {"wiki": "notes"}))
+        (root / "wiki" / "owner.md").write_text("Notes [[nowhere]]\n", encoding="utf-8")
+        after = _data(await client.call_tool("get_lint_report", {"wiki": "notes"}))
+        with pytest.raises(ToolError, match="notes"):
+            await client.call_tool("get_lint_report", {"wiki": "elsewhere"})
+    assert before.startswith("# Lint report: Notes")
+    assert "nowhere" not in before
+    assert "nowhere" in after  # an edit is seen at once, no report to regenerate
+    assert not (root / "LINT_REPORT.md").exists()  # a read-only tool writes nothing

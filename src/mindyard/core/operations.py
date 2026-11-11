@@ -198,14 +198,6 @@ def search_wiki(
     return search(cfg.root, subdirs, query, max_results, regex)
 
 
-def get_lint_report(cfg: WikiConfig) -> str:
-    """Return the wiki's lint report, or a message if none exists yet."""
-    report = cfg.root / cfg.lint_report_file
-    if not report.is_file():
-        return f"No lint report available for wiki '{cfg.id}'."
-    return report.read_text(encoding="utf-8")
-
-
 # --- write_batch: typed edit operations -------------------------------------
 
 

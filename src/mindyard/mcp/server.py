@@ -28,6 +28,7 @@ from mindyard.core.config import WikiConfig
 from mindyard.core.errors import MindyardError
 from mindyard.core.search import SearchHit
 from mindyard.identity import git_author
+from mindyard.lint import lint_wiki, render_report
 from mindyard.tenancy import TenantResolver, current_tenant
 
 from .middleware import TenantGateMiddleware, current_identity
@@ -92,7 +93,7 @@ def _read_only(title: str) -> ToolAnnotations:
 
 # Parameter descriptions travel in the tool's JSON schema, which every client
 # receives; they are what an agent reads to fill each argument.
-Wiki = Annotated[str, Field(description="Wiki id, as returned by list_wikis.")]
+WikiId = Annotated[str, Field(description="Wiki id, as returned by list_wikis.")]
 Scope = Annotated[
     str,
     Field(
@@ -158,7 +159,7 @@ def build_server(
     @mcp.tool(annotations=_read_only("Read page"))
     @_tool_errors
     def read_page(
-        wiki: Wiki,
+        wiki: WikiId,
         path: Annotated[
             str,
             Field(
@@ -193,7 +194,7 @@ def build_server(
     @mcp.tool(annotations=_read_only("List pages"))
     @_tool_errors
     def list_pages(
-        wiki: Wiki,
+        wiki: WikiId,
         scope: Scope = "wiki",
         prefix: Annotated[
             str,
@@ -216,7 +217,7 @@ def build_server(
     @mcp.tool(annotations=_read_only("Search wiki"))
     @_tool_errors
     def search_wiki(
-        wiki: Wiki,
+        wiki: WikiId,
         query: Annotated[str, Field(description="Text to find, case-insensitive.")],
         scope: Scope = "wiki",
         max_results: Annotated[int, Field(description="Stop after this many matching lines.")] = 30,
@@ -234,16 +235,18 @@ def build_server(
 
     @mcp.tool(annotations=_read_only("Lint report"))
     @_tool_errors
-    def get_lint_report(wiki: Wiki) -> str:
-        """Return the wiki's latest lint report, as Markdown.
+    def get_lint_report(wiki: WikiId) -> str:
+        """Lint the wiki now and return the report, as Markdown.
 
         The report lists broken links, orphan pages, frontmatter problems and
-        breaches of the rules the wiki declares. It is written by the 'mindyard
-        lint' command, not recomputed by this call, so it may predate recent
-        edits. Use it to review a wiki's health or before a clean-up batch; when
-        no report exists yet, a message says so.
+        breaches of the rules the wiki declares; notices are listed but not
+        counted. It reflects the files as they are at the call, recent edits
+        included, and writes nothing. Use it to review a wiki's health, before a
+        clean-up batch, and after one to check the result.
         """
-        return operations.get_lint_report(_wiki(wiki))
+        _wiki(wiki)  # an unknown id fails here, with the list of valid ones
+        vault = current_tenant().wikis[wiki]
+        return render_report(vault, lint_wiki(vault))
 
     @mcp.tool(
         annotations=ToolAnnotations(
@@ -256,7 +259,7 @@ def build_server(
     )
     @_tool_errors
     def write_batch(
-        wiki: Wiki,
+        wiki: WikiId,
         edits: Annotated[
             list[operations.Operation],
             Field(description="Edit operations, applied in order; see the tool description."),
