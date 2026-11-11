@@ -51,6 +51,10 @@ Over HTTP instead, `MINDYARD_DATA_ROOT=./data mindyard serve` listens on
 `http://127.0.0.1:8787/mcp`, without auth and on loopback only; authentication
 below opens it to Claude.ai and remote clients.
 
+To reach your wiki from Claude.ai on the web and on your phone, deploy it on a
+server: [step-by-step guide for a VPS](docs/deploy-vps.md) (Google sign-in, systemd,
+Caddy or nginx).
+
 `mindyard init DIR` without `--demo` creates an empty vault. Every directory under
 `<data root>/vaults/` holding a `wiki.yaml` is served as one wiki.
 

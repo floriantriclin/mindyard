@@ -466,7 +466,7 @@ and retry.</span></code></pre></div>
         </li>
       </ol>
       <div class="grid">
-        <div class="card"><h3>Claude.ai</h3><p>Deploy behind TLS with <code>MINDYARD_AUTH=google</code> and an allowlist of accounts, then add the URL as a custom connector.</p></div>
+        <div class="card"><h3>Claude.ai</h3><p>Deploy behind TLS with <code>MINDYARD_AUTH=google</code> and an allowlist of accounts, then add the URL as a custom connector. <a href="https://github.com/floriantriclin/mindyard/blob/main/docs/deploy-vps.md">Step-by-step VPS guide</a>.</p></div>
         <div class="card"><h3>Claude Desktop</h3><p>Same command in <code>claude_desktop_config.json</code>: <code>uvx</code> with <code>mindyard serve --stdio</code>, and <code>MINDYARD_DATA_ROOT</code> in its environment.</p></div>
         <div class="card"><h3>Remote clients and scripts</h3><p><code>MINDYARD_AUTH=bearer</code>, then <code>mindyard token new laptop</code> prints a token once. Only its hash is stored.</p></div>
         <div class="card"><h3>Docker</h3><p>A <code>compose.example.yaml</code> ships with the repository. Put a TLS reverse proxy in front.</p></div>
