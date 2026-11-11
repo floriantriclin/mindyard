@@ -3,16 +3,20 @@
 
 from __future__ import annotations
 
+import os
+import sys
 from pathlib import Path
 
 import fastmcp
 import pytest
+from fastmcp import Client
+from fastmcp.client.transports import StdioTransport
 from fastmcp.server.auth.providers.google import GoogleProvider
 
 from mindyard.auth import AllowAll, AllowAuthenticated, EmailAllowlist
 from mindyard.mcp import build_configured_server
 from mindyard.mcp.app import build_policy
-from mindyard.settings import Settings
+from mindyard.settings import Settings, SettingsError
 from mindyard.tenancy import TenantConfigError
 from tests.conftest import git_init, make_wiki
 
@@ -66,3 +70,21 @@ def test_broken_vault_stops_the_build(tmp_path: Path) -> None:
     (root / "vaults" / "notes" / "wiki.yaml").write_text("mindyard: 1\n", encoding="utf-8")
     with pytest.raises(TenantConfigError, match="label"):
         build_configured_server(Settings.from_env({"MINDYARD_DATA_ROOT": str(root)}))
+
+
+def test_stdio_refuses_an_auth_backend(tmp_path: Path) -> None:
+    settings = Settings.from_env({"MINDYARD_DATA_ROOT": str(tmp_path), "MINDYARD_AUTH": "bearer"})
+    with pytest.raises(SettingsError, match="--stdio"):
+        build_configured_server(settings, "stdio")
+
+
+async def test_stdio_serves_the_vaults_on_a_clean_stdout(tmp_path: Path) -> None:
+    root = _data_root(tmp_path)
+    transport = StdioTransport(
+        sys.executable,
+        ["-m", "mindyard.cli", "serve", "--stdio"],
+        env={**os.environ, "MINDYARD_DATA_ROOT": str(root)},
+    )
+    async with Client(transport) as client:
+        result = await client.call_tool("list_wikis", {})
+    assert "notes" in str(result.content)

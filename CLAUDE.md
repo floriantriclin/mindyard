@@ -6,8 +6,8 @@ git, read and edited by Claude.ai, Claude Desktop, Claude Code or any MCP client
 ## Stack
 
 Python 3.12+, `uv`, FastMCP (pinned below 3.5, see `src/mindyard/auth/consent.py`),
-streamable HTTP transport. No model runs on the server: it executes and records, it
-does not reason.
+streamable HTTP transport, or stdio for a local client (`serve --stdio`, no auth). No
+model runs on the server: it executes and records, it does not reason.
 
 ## Layout
 

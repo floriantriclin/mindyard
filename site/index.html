@@ -58,7 +58,7 @@
     {"@type": "Question", "name": "Is it compatible with Obsidian?",
      "acceptedAnswer": {"@type": "Answer", "text": "Yes. A vault is plain Markdown with [[wikilinks]] and YAML frontmatter. Open it in Obsidian or any editor; edits made there are protected by the same version check as the model's."}},
     {"@type": "Question", "name": "Which clients work with mindyard?",
-     "acceptedAnswer": {"@type": "Answer", "text": "Any MCP client over streamable HTTP: Claude.ai through a custom connector with Google sign-in, Claude Desktop and Claude Code with a bearer token, and other MCP clients."}},
+     "acceptedAnswer": {"@type": "Answer", "text": "Any MCP client: Claude Desktop and Claude Code launch it locally over stdio, Claude.ai reaches a deployed server through a custom connector with Google sign-in, and remote clients use a bearer token over streamable HTTP."}},
     {"@type": "Question", "name": "What does it cost?",
      "acceptedAnswer": {"@type": "Answer", "text": "Nothing. mindyard is free software under the AGPL-3.0, free to self-host. A hosted version is being considered for people who would rather not run a server."}}
   ]
@@ -266,10 +266,10 @@ footer ul{list-style:none;padding:0;margin:0 0 1rem;display:flex;flex-wrap:wrap;
     <h1>Your personal LLM wiki, served over MCP.</h1>
     <p class="lede">A Markdown vault versioned in git, that Claude reads, searches and edits for you. The model writes the pages; mindyard makes sure every write is a commit and nothing gets lost.</p>
     <div class="term">
-      <button class="copy" type="button" data-copy="uvx mindyard init ./data/vaults/garden --demo&#10;MINDYARD_DATA_ROOT=./data uvx mindyard serve" hidden>Copy</button>
-<pre><code><span class="c"># demo vault, then the server on :8787/mcp</span>
+      <button class="copy" type="button" data-copy="uvx mindyard init ./data/vaults/garden --demo&#10;claude mcp add mindyard -e MINDYARD_DATA_ROOT=$PWD/data -- uvx mindyard serve --stdio" hidden>Copy</button>
+<pre><code><span class="c"># demo vault, then hand it to Claude Code</span>
 uvx mindyard init ./data/vaults/garden --demo
-MINDYARD_DATA_ROOT=./data uvx mindyard serve</code></pre>
+claude mcp add mindyard -e MINDYARD_DATA_ROOT=$PWD/data -- uvx mindyard serve --stdio</code></pre>
     </div>
     <div class="ctas">
       <a class="btn btn-accent" href="#quickstart">Get started</a>
@@ -453,7 +453,7 @@ and retry.</span></code></pre></div>
 
   <section id="quickstart" aria-labelledby="quickstart-h">
     <div class="wrap">
-      <h2 id="quickstart-h">Quickstart: a Claude knowledge base in three commands</h2>
+      <h2 id="quickstart-h">Quickstart: a Claude knowledge base in two commands</h2>
       <p class="sub">You need Python 3.12 or later and <a href="https://docs.astral.sh/uv/">uv</a>. <code>pip install mindyard</code> works too.</p>
       <ol class="steps">
         <li>
@@ -461,17 +461,14 @@ and retry.</span></code></pre></div>
           <div class="term"><button class="copy" type="button" data-copy="uvx mindyard init ./data/vaults/garden --demo" hidden>Copy</button><pre><code>uvx mindyard init ./data/vaults/garden --demo</code></pre></div>
         </li>
         <li>
-          <p><strong>Serve it.</strong> Without authentication, mindyard only listens on loopback.</p>
-          <div class="term"><button class="copy" type="button" data-copy="MINDYARD_DATA_ROOT=./data uvx mindyard serve" hidden>Copy</button><pre><code>MINDYARD_DATA_ROOT=./data uvx mindyard serve</code></pre></div>
-        </li>
-        <li>
-          <p><strong>Connect Claude Code.</strong></p>
-          <div class="term"><button class="copy" type="button" data-copy="claude mcp add --transport http mindyard http://127.0.0.1:8787/mcp" hidden>Copy</button><pre><code>claude mcp add --transport http mindyard http://127.0.0.1:8787/mcp</code></pre></div>
+          <p><strong>Connect Claude Code.</strong> It launches mindyard itself, over stdio: no port, no token.</p>
+          <div class="term"><button class="copy" type="button" data-copy="claude mcp add mindyard -e MINDYARD_DATA_ROOT=$PWD/data -- uvx mindyard serve --stdio" hidden>Copy</button><pre><code>claude mcp add mindyard -e MINDYARD_DATA_ROOT=$PWD/data -- uvx mindyard serve --stdio</code></pre></div>
         </li>
       </ol>
       <div class="grid">
         <div class="card"><h3>Claude.ai</h3><p>Deploy behind TLS with <code>MINDYARD_AUTH=google</code> and an allowlist of accounts, then add the URL as a custom connector.</p></div>
-        <div class="card"><h3>Claude Desktop and scripts</h3><p><code>MINDYARD_AUTH=bearer</code>, then <code>mindyard token new laptop</code> prints a token once. Only its hash is stored.</p></div>
+        <div class="card"><h3>Claude Desktop</h3><p>Same command in <code>claude_desktop_config.json</code>: <code>uvx</code> with <code>mindyard serve --stdio</code>, and <code>MINDYARD_DATA_ROOT</code> in its environment.</p></div>
+        <div class="card"><h3>Remote clients and scripts</h3><p><code>MINDYARD_AUTH=bearer</code>, then <code>mindyard token new laptop</code> prints a token once. Only its hash is stored.</p></div>
         <div class="card"><h3>Docker</h3><p>A <code>compose.example.yaml</code> ships with the repository. Put a TLS reverse proxy in front.</p></div>
       </div>
       <p style="margin-top:1.5rem"><a href="https://github.com/floriantriclin/mindyard#readme">Full documentation in the README</a></p>
@@ -516,7 +513,7 @@ and retry.</span></code></pre></div>
       <details><summary>Does mindyard send my notes anywhere?</summary><p>No. mindyard runs on your machine or your server and stores everything in a git repository you own. Your notes reach only the MCP client you connect, such as Claude.</p></details>
       <details><summary>Does mindyard run a language model?</summary><p>No. The model stays in your client. The server executes and records: it validates edits, commits them and lints the vault, without reasoning about the content.</p></details>
       <details><summary>Is it compatible with Obsidian?</summary><p>Yes. A vault is plain Markdown with <code>[[wikilinks]]</code> and YAML frontmatter. Open it in Obsidian or any editor; edits made there are protected by the same version check as the model's.</p></details>
-      <details><summary>Which clients work with mindyard?</summary><p>Any MCP client over streamable HTTP: Claude.ai through a custom connector with Google sign-in, Claude Desktop and Claude Code with a bearer token, and other MCP clients.</p></details>
+      <details><summary>Which clients work with mindyard?</summary><p>Any MCP client: Claude Desktop and Claude Code launch it locally over stdio, Claude.ai reaches a deployed server through a custom connector with Google sign-in, and remote clients use a bearer token over streamable HTTP.</p></details>
       <details><summary>Can I keep several wikis?</summary><p>Yes. Every directory under <code>vaults/</code> holding a <code>wiki.yaml</code> is served as its own wiki, and the model picks one per operation.</p></details>
       <details><summary>What does it cost?</summary><p>Nothing. mindyard is free software under the AGPL-3.0, free to self-host. A hosted version is being considered for people who would rather not run a server.</p></details>
     </div>

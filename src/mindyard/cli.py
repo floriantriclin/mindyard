@@ -41,7 +41,7 @@ def _cmd_serve(args: argparse.Namespace) -> int:
         if value is not None:
             env[name] = str(value)
     try:
-        run(Settings.from_env(env))
+        run(Settings.from_env(env), "stdio" if args.stdio else "http")
     except (SettingsError, TenantConfigError) as exc:
         print(f"mindyard serve: {exc}", file=sys.stderr)
         return 2
@@ -107,6 +107,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--data-root")
     p.add_argument("--host")
     p.add_argument("--port", type=int)
+    p.add_argument(
+        "--stdio",
+        action="store_true",
+        help="serve over stdin/stdout for a local client (no auth, ignores host and port)",
+    )
     p.set_defaults(func=_cmd_serve)
 
     p = sub.add_parser("lint", help="lint one vault and write its LINT_REPORT.md")

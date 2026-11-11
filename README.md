@@ -28,8 +28,28 @@ Status: early release (0.1). Website: [mindyard.dev](https://mindyard.dev).
 uv tool install mindyard        # or prefix each command with `uvx`, or `pip install mindyard`
 mindyard init ./data/vaults/garden --demo
 mindyard lint ./data/vaults/garden
-MINDYARD_DATA_ROOT=./data mindyard serve   # http://127.0.0.1:8787/mcp, no auth, loopback only
+claude mcp add mindyard -e MINDYARD_DATA_ROOT=$PWD/data -- mindyard serve --stdio
 ```
+
+`--stdio` lets a local client launch the server itself: no port, no token, the
+vaults of the user who runs it. Claude Desktop takes the same command in
+`claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "mindyard": {
+      "command": "uvx",
+      "args": ["mindyard", "serve", "--stdio"],
+      "env": { "MINDYARD_DATA_ROOT": "/home/you/data" }
+    }
+  }
+}
+```
+
+Over HTTP instead, `MINDYARD_DATA_ROOT=./data mindyard serve` listens on
+`http://127.0.0.1:8787/mcp`, without auth and on loopback only; authentication
+below opens it to Claude.ai and remote clients.
 
 `mindyard init DIR` without `--demo` creates an empty vault. Every directory under
 `<data root>/vaults/` holding a `wiki.yaml` is served as one wiki.
@@ -53,10 +73,10 @@ Set `MINDYARD_AUTH`:
 | Value | For | Notes |
 |---|---|---|
 | `none` | local use | refuses to listen beyond loopback |
-| `bearer` | Claude Code, Claude Desktop, scripts | `mindyard token new laptop` prints a token once; only its SHA-256 is stored |
+| `bearer` | remote Claude Code or Desktop, scripts | `mindyard token new laptop` prints a token once; only its SHA-256 is stored |
 | `google` | Claude.ai (OAuth) | needs `MINDYARD_BASE_URL`, `MINDYARD_GOOGLE_CLIENT_ID`, `MINDYARD_GOOGLE_CLIENT_SECRET`, `MINDYARD_ALLOWED_EMAILS`; an account off the list is refused at sign-in |
 
-Claude Code with a bearer token:
+Claude Code against a remote server, with a bearer token:
 
 ```bash
 claude mcp add --transport http mindyard https://wiki.example.org/mcp \

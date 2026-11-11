@@ -17,8 +17,7 @@
       "version": "0.1.1",
       "runtimeHint": "uvx",
       "transport": {
-        "type": "streamable-http",
-        "url": "http://localhost:{--port}/mcp"
+        "type": "stdio"
       },
       "packageArguments": [
         {
@@ -27,10 +26,7 @@
         },
         {
           "type": "named",
-          "name": "--port",
-          "description": "Port to listen on (loopback)",
-          "format": "number",
-          "default": "8787"
+          "name": "--stdio"
         }
       ],
       "environmentVariables": [
@@ -39,12 +35,6 @@
           "description": "Directory holding vaults/ (create one with: mindyard init <data root>/vaults/garden --demo)",
           "format": "filepath",
           "isRequired": true
-        },
-        {
-          "name": "MINDYARD_AUTH",
-          "description": "none (loopback only), bearer or google",
-          "default": "none",
-          "choices": ["none", "bearer", "google"]
         }
       ]
     }
