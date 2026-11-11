@@ -180,6 +180,24 @@ td:not(:first-child),th:not(:first-child){text-align:center}
 .hosted p{color:#d6e6dc;max-width:40rem}
 .hosted a{color:#fff}
 
+.wl{margin-top:1.6rem;max-width:40rem;display:grid;gap:1.2rem}
+.wl label,.wl legend{color:#fff;font-weight:600}
+.field{display:grid;gap:.4rem}
+.wl input[type=email]{font:inherit;padding:.75rem .9rem;border-radius:10px;border:1px solid #8fb3a1;background:#fff;color:#17241d;width:100%}
+.wl fieldset{border:0;padding:0;margin:0}
+.wl legend{margin-bottom:.6rem}
+.opt{font-weight:400;color:#d6e6dc}
+.prices{display:flex;flex-wrap:wrap;gap:.5rem}
+.prices label{font-weight:500;display:inline-flex;gap:.45rem;align-items:center;border:1px solid #6f9a85;border-radius:999px;padding:.4rem .85rem;cursor:pointer}
+.prices label:has(input:checked){background:#fff;color:#1f4d3a}
+.prices input,.consent input{accent-color:var(--accent);width:1.05rem;height:1.05rem;margin:0}
+.consent{font-weight:400 !important;display:flex;gap:.6rem;align-items:flex-start;color:#e3eee7 !important}
+.consent input{margin-top:.3rem;flex:none}
+.wl .btn{justify-self:start}
+.note{font-size:.9rem;margin:0}
+.hp{position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden}
+.hosted{position:relative}
+
 /* faq */
 details{border-bottom:1px solid var(--line);padding:1rem 0;max-width:46rem}
 summary{cursor:pointer;font-weight:600;font-size:1.05rem}
@@ -389,7 +407,29 @@ d9adce2 Add marigold, a companion for the tomato bed
       <div class="hosted">
         <h2 id="hosted-h">Don't want to run a server?</h2>
         <p>A hosted mindyard is being considered: your wiki, connected to Claude.ai in a minute, with no server to keep. If you would use it, tell us, and what it would be worth to you.</p>
-        <!-- waitlist form: second step of the site, see site/README.md -->
+        <form class="wl" method="post" action="/api/waitlist">
+          <div class="field">
+            <label for="wl-email">Email</label>
+            <input id="wl-email" name="email" type="email" required autocomplete="email" maxlength="254" placeholder="you@example.org">
+          </div>
+          <fieldset>
+            <legend>What would you pay per month for it? <span class="opt">(optional)</span></legend>
+            <div class="prices">
+              <label><input type="radio" name="price" value="lt3"> Under €3</label>
+              <label><input type="radio" name="price" value="3to6"> €3 to €6</label>
+              <label><input type="radio" name="price" value="6to10"> €6 to €10</label>
+              <label><input type="radio" name="price" value="gt10"> Over €10</label>
+              <label><input type="radio" name="price" value="none"> I would not pay</label>
+            </div>
+          </fieldset>
+          <div class="hp" aria-hidden="true">
+            <label for="wl-website">Leave this empty</label>
+            <input id="wl-website" name="website" type="text" tabindex="-1" autocomplete="off">
+          </div>
+          <label class="consent"><input type="checkbox" name="consent" value="yes" required> <span>Keep my email to tell me when the hosted version opens, and for nothing else. It is deleted after 12 months at the latest. <a href="/privacy.html">Privacy notice</a></span></label>
+          <button class="btn btn-accent" type="submit">Join the waitlist</button>
+          <p class="note">One email when it opens, no newsletter. No confirmation email is sent.</p>
+        </form>
       </div>
     </div>
   </section>
@@ -414,6 +454,8 @@ d9adce2 Add marigold, a companion for the tomato bed
       <li><a href="https://pypi.org/project/mindyard/">PyPI</a></li>
       <li><a href="https://github.com/floriantriclin/mindyard/blob/main/LICENSE">License (AGPL-3.0)</a></li>
       <li><a href="https://github.com/floriantriclin/mindyard/blob/main/SECURITY.md">Security</a></li>
+      <li><a href="/privacy.html">Privacy</a></li>
+      <li><a href="/legal.html">Legal notice</a></li>
     </ul>
     <p>mindyard is free software. Claude is a trademark of Anthropic; mindyard is not affiliated with Anthropic.</p>
   </div>
