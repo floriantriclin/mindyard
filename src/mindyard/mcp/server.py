@@ -12,11 +12,12 @@ from __future__ import annotations
 import functools
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any
 
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 from mcp.types import Icon, ToolAnnotations
+from pydantic import Field
 from starlette.requests import Request
 from starlette.responses import FileResponse
 
@@ -89,6 +90,19 @@ def _read_only(title: str) -> ToolAnnotations:
     return ToolAnnotations(title=title, readOnlyHint=True, openWorldHint=False)
 
 
+# Parameter descriptions travel in the tool's JSON schema, which every client
+# receives; they are what an agent reads to fill each argument.
+Wiki = Annotated[str, Field(description="Wiki id, as returned by list_wikis.")]
+Scope = Annotated[
+    str,
+    Field(
+        description="Zone: 'wiki' (distilled pages, default), 'raw' (verbatim sources) "
+        "or 'all' (both). Index, log and schema files sit at the wiki root, outside "
+        "every zone: open them with read_page."
+    ),
+]
+
+
 def build_server(
     backend: AuthBackend,
     policy: AccessPolicy,
@@ -126,7 +140,11 @@ def build_server(
     @mcp.tool(annotations=_read_only("List wikis"))
     @_tool_errors
     def list_wikis() -> list[dict[str, str]]:
-        """List your wikis as {id, label, description}."""
+        """List the caller's wikis as [{id, label, description}].
+
+        Call it first in a session: every other tool takes one of these ids as
+        'wiki'. An empty list means no wiki is set up for this account.
+        """
         wikis = current_tenant().wikis
         return [
             {
@@ -140,9 +158,27 @@ def build_server(
     @mcp.tool(annotations=_read_only("Read page"))
     @_tool_errors
     def read_page(
-        wiki: str, path: str, raw: bool = False, offset: int = 1, limit: int | None = None
+        wiki: Wiki,
+        path: Annotated[
+            str,
+            Field(
+                description="File path relative to the wiki root, e.g. 'index.md' or "
+                "'wiki/topic.md' (as listed by list_pages or search_wiki)."
+            ),
+        ],
+        raw: Annotated[
+            bool, Field(description="Verbatim bytes, wikilinks kept: use before editing.")
+        ] = False,
+        offset: Annotated[int, Field(description="First line to return, 1-based.")] = 1,
+        limit: Annotated[
+            int | None, Field(description="Maximum number of lines; all when omitted.")
+        ] = None,
     ) -> dict[str, object]:
-        """Read a file in the target wiki (confined to its root).
+        """Read one file of the target wiki (confined to its root).
+
+        Use it to open a page found with list_pages or search_wiki, and the index,
+        log and schema files at the wiki root. A missing path or one outside the
+        wiki is refused with an error.
 
         Default: rendered for display, Obsidian wikilinks stripped, so never show
         '[[...]]' to the user. Pass raw=True to get the verbatim bytes before
@@ -157,30 +193,56 @@ def build_server(
     @mcp.tool(annotations=_read_only("List pages"))
     @_tool_errors
     def list_pages(
-        wiki: str, scope: str = "wiki", prefix: str = "", limit: int = 200
+        wiki: Wiki,
+        scope: Scope = "wiki",
+        prefix: Annotated[
+            str,
+            Field(
+                description="Keep only paths starting with this, relative to the wiki "
+                "root, e.g. 'wiki/people/'. Empty: no filter."
+            ),
+        ] = "",
+        limit: Annotated[int, Field(description="Maximum number of paths returned.")] = 200,
     ) -> dict[str, object]:
-        """List .md files in a zone ('wiki', 'raw' or 'all').
+        """List the Markdown files of a zone, to browse a wiki by its structure.
 
-        Returns {pages, truncated, total}; pages is sorted and capped at limit.
+        To find pages by their content, use search_wiki instead; to open one, pass
+        its path to read_page. Returns {pages, truncated, total}: paths relative to
+        the wiki root, sorted and capped at limit; total counts every match and
+        truncated says the list was cut.
         """
         return dict(operations.list_pages(_wiki(wiki), scope, prefix, limit))
 
     @mcp.tool(annotations=_read_only("Search wiki"))
     @_tool_errors
     def search_wiki(
-        wiki: str, query: str, scope: str = "wiki", max_results: int = 30, regex: bool = False
+        wiki: Wiki,
+        query: Annotated[str, Field(description="Text to find, case-insensitive.")],
+        scope: Scope = "wiki",
+        max_results: Annotated[int, Field(description="Stop after this many matching lines.")] = 30,
+        regex: Annotated[
+            bool, Field(description="Treat query as a regular expression (default: literal).")
+        ] = False,
     ) -> list[SearchHit]:
-        """Case-insensitive full-text search; returns [{page, line, text}].
+        """Find the lines of a wiki that contain a text, to locate pages by content.
 
-        regex=False (default) matches query literally; regex=True treats it as a
-        regular expression.
+        Returns [{page, line, text}], one entry per matching line. Read the full
+        page with read_page (offset=line jumps to the match); to browse by path,
+        use list_pages. An invalid regular expression is refused with an error.
         """
         return list(operations.search_wiki(_wiki(wiki), query, scope, max_results, regex))
 
     @mcp.tool(annotations=_read_only("Lint report"))
     @_tool_errors
-    def get_lint_report(wiki: str) -> str:
-        """Return the target wiki's lint report, or a message if there is none."""
+    def get_lint_report(wiki: Wiki) -> str:
+        """Return the wiki's latest lint report, as Markdown.
+
+        The report lists broken links, orphan pages, frontmatter problems and
+        breaches of the rules the wiki declares. It is written by the 'mindyard
+        lint' command, not recomputed by this call, so it may predate recent
+        edits. Use it to review a wiki's health or before a clean-up batch; when
+        no report exists yet, a message says so.
+        """
         return operations.get_lint_report(_wiki(wiki))
 
     @mcp.tool(
@@ -194,7 +256,12 @@ def build_server(
     )
     @_tool_errors
     def write_batch(
-        wiki: str, edits: list[operations.Operation], message: str
+        wiki: Wiki,
+        edits: Annotated[
+            list[operations.Operation],
+            Field(description="Edit operations, applied in order; see the tool description."),
+        ],
+        message: Annotated[str, Field(description="Commit message describing the change.")],
     ) -> dict[str, object]:
         """Transactionally apply typed edit operations in one git commit.
 
