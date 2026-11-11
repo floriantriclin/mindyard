@@ -29,7 +29,10 @@ server instructions, but less well.
 - A stale version is rejected: re-read, rebuild the edit on the new content.
   Never resend the same payload.
 - Prefer `replace` over `overwrite`. `raw/` is create-only. `wiki.yaml` is
-  read-only for you; propose changes to the user instead.
+  read-only for you; propose changes to the user instead. One exception: in a
+  new vault whose `wiki.yaml` still holds the `# mindyard:bootstrap` line, define
+  it with the user (purpose, kinds of pages, required fields, statuses), then
+  overwrite it once, without that line, in the same batch as `schema.md`.
 
 ## Operations
 

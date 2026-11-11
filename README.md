@@ -13,7 +13,8 @@ the bookkeeping that keeps the wiki trustworthy, and no model runs on it:
 - **no lost updates**: editing a page requires the version you read, and a stale
   one is rejected (optimistic concurrency);
 - **write zones**: sources in `raw/` are create-only, the index, log and schema
-  cannot be deleted, and `wiki.yaml` (the rules) is read-only for the model;
+  cannot be deleted, and `wiki.yaml` (the rules) is read-only for the model,
+  except to define a new vault once, with your agreement;
 - **the protocol travels with the server**: clients without any skill still get
   the method through the MCP instructions and tool descriptions;
 - **a deterministic linter** checks links, orphans, frontmatter and the rules

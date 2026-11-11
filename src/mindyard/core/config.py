@@ -16,6 +16,10 @@ from pathlib import Path
 from .errors import UnknownWikiError
 
 CONFIG_FILE = "wiki.yaml"
+# A line of the blank template: while wiki.yaml still holds it, the model may
+# define the vault once (see ``write_batch``). The new content must drop it,
+# which locks the file again.
+BOOTSTRAP_MARKER = "# mindyard:bootstrap"
 
 
 @dataclass(frozen=True)

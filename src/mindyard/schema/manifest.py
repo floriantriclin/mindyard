@@ -144,7 +144,7 @@ class WikiManifest(_Strict):
         )
 
 
-def _format_errors(source: Path, exc: ValidationError) -> str:
+def _format_errors(source: str, exc: ValidationError) -> str:
     lines = [f"{source}: invalid configuration"]
     for err in exc.errors():
         loc = ".".join(str(part) for part in err["loc"]) or "(root)"
@@ -152,17 +152,14 @@ def _format_errors(source: Path, exc: ValidationError) -> str:
     return "\n".join(lines)
 
 
-def load_manifest(root: Path) -> WikiManifest:
-    """Parse and validate ``<root>/wiki.yaml``.
+def parse_manifest(text: str, source: str, dir_name: str) -> WikiManifest:
+    """Parse and validate the text of a ``wiki.yaml``; ``source`` names it in errors.
 
     The wiki id is the directory name. An ``id`` key, if present, must agree with
     it, so a copied vault can never impersonate another one by its id.
     """
-    source = root / CONFIG_FILE
     try:
-        data = yaml.safe_load(source.read_text(encoding="utf-8"))
-    except OSError as exc:
-        raise ManifestError(f"{source}: cannot read ({exc.strerror})") from exc
+        data = yaml.safe_load(text)
     except yaml.YAMLError as exc:
         raise ManifestError(f"{source}: not valid YAML ({exc})") from exc
     if not isinstance(data, dict):
@@ -171,10 +168,37 @@ def load_manifest(root: Path) -> WikiManifest:
         manifest = WikiManifest.model_validate(data)
     except ValidationError as exc:
         raise ManifestError(_format_errors(source, exc)) from exc
-    if not _WIKI_ID_RE.match(root.name):
-        raise ManifestError(f"{source}: directory name {root.name!r} is not a valid wiki id")
-    if manifest.id is not None and manifest.id != root.name:
+    if not _WIKI_ID_RE.match(dir_name):
+        raise ManifestError(f"{source}: directory name {dir_name!r} is not a valid wiki id")
+    if manifest.id is not None and manifest.id != dir_name:
         raise ManifestError(
-            f"{source}: id {manifest.id!r} does not match its directory {root.name!r}"
+            f"{source}: id {manifest.id!r} does not match its directory {dir_name!r}"
         )
     return manifest
+
+
+def load_manifest(root: Path) -> WikiManifest:
+    """Parse and validate ``<root>/wiki.yaml``."""
+    source = root / CONFIG_FILE
+    try:
+        text = source.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise ManifestError(f"{source}: cannot read ({exc.strerror})") from exc
+    return parse_manifest(text, str(source), root.name)
+
+
+def check_definition(current: str, proposed: str, dir_name: str) -> WikiManifest:
+    """Validate a one-time definition of ``wiki.yaml`` written by the model.
+
+    The proposed text must be a valid manifest, and it may not move the vault's
+    structure: ``layout`` (where the write zones are) and ``log`` (its sentinel)
+    stay as they are. Errors name the file, never a server path.
+    """
+    before = parse_manifest(current, CONFIG_FILE, dir_name)
+    after = parse_manifest(proposed, CONFIG_FILE, dir_name)
+    for key in ("layout", "log"):
+        if getattr(after, key) != getattr(before, key):
+            raise ManifestError(
+                f"{CONFIG_FILE}: '{key}' cannot change in a definition by the model"
+            )
+    return after

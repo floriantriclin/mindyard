@@ -24,11 +24,12 @@ from starlette.responses import FileResponse
 from mindyard import __version__
 from mindyard.auth import AccessPolicy, AuthBackend
 from mindyard.core import operations
-from mindyard.core.config import WikiConfig
-from mindyard.core.errors import MindyardError
+from mindyard.core.config import CONFIG_FILE, WikiConfig
+from mindyard.core.errors import ConfigRejectedError, MindyardError
 from mindyard.core.search import SearchHit
 from mindyard.identity import git_author
 from mindyard.lint import lint_wiki, render_report
+from mindyard.schema import ManifestError, Wiki, check_definition, load_manifest
 from mindyard.tenancy import TenantResolver, current_tenant
 
 from .middleware import TenantGateMiddleware, current_identity
@@ -54,6 +55,14 @@ domain and conventions. Before any write_batch, present the plan to the user
 (target wiki, every operation, and the split if several batches are needed,
 with index and log in the last) and proceed only on explicit agreement.
 
+New vault: if the schema file is still the blank template (placeholders such as
+'What this wiki is for'), offer to define the wiki with the user first: ask what
+it is for and which kinds of pages it will hold, then propose schema.md and,
+while wiki.yaml still holds its '# mindyard:bootstrap' line, a complete
+wiki.yaml (label, description, entities with their required fields and closed
+status lists). Both go in one batch once the user agrees; wiki.yaml is then
+locked for good.
+
 Reading vs editing: read_page renders for display (wikilinks stripped); never
 show '[[...]]' to the user. To edit a page you MUST first read it with raw=True
 to get the verbatim bytes AND its version; build the edit on those bytes and
@@ -66,8 +75,8 @@ existing file requires expected_version from read_page; a stale token is
 rejected, so re-read and rebuild. raw/ is create-only. The log, index and
 schema files cannot be deleted or renamed; the log grows by replacing its
 sentinel line. Writes are confined to the wiki and raw zones plus the
-index/log/schema files; wiki.yaml is read-only. Include a log entry in the same
-batch.
+index/log/schema files; wiki.yaml is read-only, except for that one-time
+definition. Include a log entry in the same batch.
 """
 
 
@@ -286,10 +295,28 @@ def build_server(
         or rename an existing file, ignored for a path created earlier in this
         batch. Writes stay under the wiki and raw zones or the index/log/schema
         files; raw/ is create-only; the log, index and schema cannot be deleted or
-        renamed. Everything is validated first: on any failure nothing is written
-        or committed. Returns {commit, applied}.
+        renamed. wiki.yaml is read-only, except once: while it still holds its
+        '# mindyard:bootstrap' line, an overwrite may define it (valid config,
+        same layout and log, marker line removed), then it locks. Everything is
+        validated first: on any failure nothing is written or committed. Returns
+        {commit, applied}.
         """
+        cfg = _wiki(wiki)
         author = git_author(current_identity())
-        return dict(operations.write_batch(_wiki(wiki), edits, message, author))
+
+        def check(current: str, proposed: str) -> None:
+            try:
+                check_definition(current, proposed, cfg.root.name)
+            except ManifestError as exc:
+                raise ConfigRejectedError(str(exc)) from exc
+
+        result = operations.write_batch(cfg, edits, message, author, check)
+        config = (cfg.root / CONFIG_FILE).resolve()
+        if any((cfg.root / entry["path"]).resolve() == config for entry in result["applied"]):
+            # The new definition takes effect at once: labels, entity kinds and
+            # lint rules. Layout is unchanged (check_definition), so are the zones.
+            manifest = load_manifest(cfg.root)
+            current_tenant().wikis[wiki] = Wiki(manifest.to_config(wiki, cfg.root), manifest)
+        return dict(result)
 
     return mcp

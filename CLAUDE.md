@@ -41,7 +41,9 @@ Under `src/mindyard/`:
 - `write_batch` is the only write path: validated whole, then applied in one commit,
   rolled back on failure, serialised per wiki.
 - Write zones: `raw/` is create-only; index, log and schema cannot be deleted or
-  renamed; `wiki.yaml` is outside the write zones.
+  renamed; `wiki.yaml` is outside the write zones, except once: while it holds the
+  blank template's `# mindyard:bootstrap` line, an overwrite may define it (valid,
+  same layout and log, marker dropped), then it locks and reloads.
 - The tenant comes from the caller's identity (issuer and subject, never the email) and
   is never a tool argument.
 - Startup refuses configurations that would expose vaults (no auth beyond loopback,

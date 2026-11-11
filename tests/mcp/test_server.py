@@ -16,6 +16,7 @@ from fastmcp.server.auth import AccessToken, AuthProvider
 
 from mindyard.auth import AllowAll, AllowAuthenticated, EmailAllowlist, NoAuth
 from mindyard.identity import Identity
+from mindyard.init import init_vault
 from mindyard.mcp import build_server
 from mindyard.tenancy import SingleTenantResolver, load_mapped_resolver, load_tenant
 from tests.conftest import git_init, make_wiki
@@ -239,3 +240,108 @@ async def test_lint_report_reflects_the_vault_at_the_call(
     assert "nowhere" not in before
     assert "nowhere" in after  # an edit is seen at once, no report to regenerate
     assert not (root / "LINT_REPORT.md").exists()  # a read-only tool writes nothing
+
+
+DEFINED = """mindyard: 1
+label: Reading
+description: Books I read.
+entities:
+  book:
+    required: [title, author]
+    status: [to-read, reading, read]
+"""
+
+
+@pytest.fixture
+def blank(tmp_path: Path) -> FastMCP[Any]:
+    init_vault(tmp_path / "vaults" / "reading", "Reading")
+    resolver = SingleTenantResolver(load_tenant("default", tmp_path / "vaults"))
+    return build_server(NoAuth(), AllowAll(), resolver, telemetry=False)
+
+
+async def _config_version(client: Client[Any]) -> str:
+    page = _data(
+        await client.call_tool("read_page", {"wiki": "reading", "path": "wiki.yaml", "raw": True})
+    )
+    return str(page["version"])
+
+
+async def test_a_new_vault_is_defined_once_and_takes_effect_at_once(
+    blank: FastMCP[Any], tmp_path: Path
+) -> None:
+    book = "---\ntitle: Dune\nentity_kind: book\n---\n# Dune\n"
+    async with Client(blank) as client:
+        version = await _config_version(client)
+        await client.call_tool(
+            "write_batch",
+            {
+                "wiki": "reading",
+                "message": "Define the vault",
+                "edits": [
+                    {
+                        "op": "overwrite",
+                        "path": "wiki.yaml",
+                        "content": DEFINED,
+                        "expected_version": version,
+                    },
+                    {"op": "create", "path": "wiki/dune.md", "content": book},
+                ],
+            },
+        )
+        wikis = _data(await client.call_tool("list_wikis", {}))
+        report = _data(await client.call_tool("get_lint_report", {"wiki": "reading"}))
+        with pytest.raises(ToolError, match="read-only"):
+            await client.call_tool(
+                "write_batch",
+                {
+                    "wiki": "reading",
+                    "message": "Loosen the rules",
+                    "edits": [
+                        {
+                            "op": "overwrite",
+                            "path": "wiki.yaml",
+                            "content": "mindyard: 1\nlabel: Reading\n",
+                            "expected_version": await _config_version(client),
+                        }
+                    ],
+                },
+            )
+    assert wikis == [{"id": "reading", "label": "Reading", "description": "Books I read."}]
+    assert "author" in report  # the new entity kind is enforced without a restart
+    on_disk = (tmp_path / "vaults" / "reading" / "wiki.yaml").read_text(encoding="utf-8")
+    assert on_disk == DEFINED
+
+
+@pytest.mark.parametrize(
+    ("content", "reason"),
+    [
+        ("mindyard: 1\nlabel: [unclosed\n", "not valid YAML"),
+        ("mindyard: 1\nlabel: Reading\nlayout:\n  raw_dir: wiki\n", "'layout' cannot change"),
+        ("mindyard: 1\nlabel: Reading\nsurprise: 1\n", "surprise"),
+    ],
+)
+async def test_an_invalid_definition_is_refused_and_writes_nothing(
+    blank: FastMCP[Any], tmp_path: Path, content: str, reason: str
+) -> None:
+    config = tmp_path / "vaults" / "reading" / "wiki.yaml"
+    before = config.read_text(encoding="utf-8")
+    async with Client(blank) as client:
+        version = await _config_version(client)
+        with pytest.raises(ToolError, match=reason) as excinfo:
+            await client.call_tool(
+                "write_batch",
+                {
+                    "wiki": "reading",
+                    "message": "Define",
+                    "edits": [
+                        {
+                            "op": "overwrite",
+                            "path": "wiki.yaml",
+                            "content": content,
+                            "expected_version": version,
+                        }
+                    ],
+                },
+            )
+    assert str(tmp_path) not in str(excinfo.value)  # errors never carry server paths
+    assert config.read_text(encoding="utf-8") == before

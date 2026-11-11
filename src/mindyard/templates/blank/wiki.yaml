@@ -1,5 +1,7 @@
 # mindyard vault configuration: enforced by the server and the linter.
-# This file is read-only for the model; edit it yourself.
+# This file is read-only for the model; edit it yourself. While the next line is
+# here, your assistant may define this file once, with your agreement.
+# mindyard:bootstrap
 mindyard: 1
 label: "$label"
 description: ""

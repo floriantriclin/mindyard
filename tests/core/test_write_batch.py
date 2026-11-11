@@ -16,6 +16,8 @@ import pytest
 from mindyard.core import operations
 from mindyard.core.config import WikiSet
 from mindyard.core.errors import (
+    ConfigLockedError,
+    ConfigRejectedError,
     CreateExistsError,
     EmptyBatchError,
     GitError,
@@ -830,9 +832,93 @@ def test_wiki_yaml_is_outside_the_write_zones(
         Operation(op="overwrite", path="wiki.yaml", content="x", expected_version="0"),
         Operation(op="delete", path="wiki.yaml", expected_version="0"),
     ):
-        with pytest.raises(WriteZoneError):
-            operations.write_batch(wikis["alpha"], [op], "tamper")
+        with pytest.raises(ConfigLockedError):
+            operations.write_batch(wikis["alpha"], [op], "tamper", config_check=_accept)
     assert (root / "wiki.yaml").read_text(encoding="utf-8") == "mindyard: 1\n"
+
+
+def _accept(current: str, proposed: str) -> None:
+    """A validator that accepts anything: the core's own rules are under test."""
+
+
+_BLANK = "# mindyard:bootstrap\nmindyard: 1\nlabel: Alpha\n"
+
+
+def _blank_vault(root: Path) -> str:
+    (root / "wiki.yaml").write_text(_BLANK, encoding="utf-8")
+    subprocess.run(["git", "-C", str(root), "add", "wiki.yaml"], check=True)
+    subprocess.run(["git", "-C", str(root), "commit", "-qm", "blank"], check=True)
+    return content_version(_BLANK)
+
+
+def test_a_blank_config_can_be_defined_once(
+    wikis: WikiSet, git_wiki_roots: dict[str, Path]
+) -> None:
+    root = git_wiki_roots["alpha"]
+    version = _blank_vault(root)
+    defined = "mindyard: 1\nlabel: Alpha\ndescription: Books\n"
+    op = Operation(op="overwrite", path="wiki.yaml", content=defined, expected_version=version)
+    operations.write_batch(wikis["alpha"], [op], "define", config_check=_accept)
+    assert (root / "wiki.yaml").read_text(encoding="utf-8") == defined
+    again = Operation(
+        op="overwrite", path="wiki.yaml", content=_BLANK, expected_version=content_version(defined)
+    )
+    with pytest.raises(ConfigLockedError):  # the marker is gone: locked for good
+        operations.write_batch(wikis["alpha"], [again], "redefine", config_check=_accept)
+
+
+def test_a_blank_config_stays_locked_without_a_validator(
+    wikis: WikiSet, git_wiki_roots: dict[str, Path]
+) -> None:
+    root = git_wiki_roots["alpha"]
+    version = _blank_vault(root)
+    op = Operation(op="overwrite", path="wiki.yaml", content="label: x\n", expected_version=version)
+    with pytest.raises(ConfigLockedError):
+        operations.write_batch(wikis["alpha"], [op], "define")
+    assert (root / "wiki.yaml").read_text(encoding="utf-8") == _BLANK
+
+
+@pytest.mark.parametrize("op", ["create", "delete", "rename"])
+def test_a_blank_config_still_refuses_other_operations(
+    wikis: WikiSet, git_wiki_roots: dict[str, Path], op: str
+) -> None:
+    root = git_wiki_roots["alpha"]
+    version = _blank_vault(root)
+    entry = {
+        "create": Operation(op="create", path="wiki.yaml", content="x"),
+        "delete": Operation(op="delete", path="wiki.yaml", expected_version=version),
+        "rename": Operation(
+            op="rename", path="wiki.yaml", new_path="wiki/c.md", expected_version=version
+        ),
+    }[op]
+    with pytest.raises(ConfigLockedError):
+        operations.write_batch(wikis["alpha"], [entry], "tamper", config_check=_accept)
+    assert (root / "wiki.yaml").read_text(encoding="utf-8") == _BLANK
+
+
+def test_a_definition_must_drop_the_marker_and_pass_the_check(
+    wikis: WikiSet, git_wiki_roots: dict[str, Path]
+) -> None:
+    root = git_wiki_roots["alpha"]
+    version = _blank_vault(root)
+    keep_marker = Operation(
+        op="overwrite",
+        path="wiki.yaml",
+        content=_BLANK + "description: x\n",
+        expected_version=version,
+    )
+    with pytest.raises(ConfigRejectedError, match="one-time"):
+        operations.write_batch(wikis["alpha"], [keep_marker], "x", config_check=_accept)
+
+    def refuse(current: str, proposed: str) -> None:
+        raise ConfigRejectedError("not valid")
+
+    page = Operation(op="create", path="wiki/new.md", content="x")
+    define = Operation(op="overwrite", path="wiki.yaml", content="x\n", expected_version=version)
+    with pytest.raises(ConfigRejectedError, match="not valid"):
+        operations.write_batch(wikis["alpha"], [page, define], "x", config_check=refuse)
+    assert (root / "wiki.yaml").read_text(encoding="utf-8") == _BLANK
+    assert not (root / "wiki" / "new.md").exists()  # the whole batch is refused
 
 
 def test_concurrent_batches_on_one_wiki_are_serialised(

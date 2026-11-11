@@ -26,7 +26,7 @@ Ground rules:
 - **The invariants are tested, keep them tested**: path confinement, optimistic
   concurrency (a stale-version error never quotes the current version), atomic
   and per-wiki serialised `write_batch`, create-only `raw/`, `wiki.yaml` outside
-  the write zones, tenant derived from identity and never from an argument.
+  the write zones (except its one-time definition from the blank template), tenant derived from identity and never from an argument.
 - **No real personal data**, in fixtures, examples or docs. Use invented names.
 - Code, docstrings and docs in English; every Python file carries the
   `SPDX-License-Identifier: AGPL-3.0-or-later` header.

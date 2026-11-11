@@ -181,6 +181,26 @@ class WriteZoneError(MindyardError):
         )
 
 
+class ConfigLockedError(MindyardError):
+    """Raised when a write targets ``wiki.yaml`` outside its one-time definition."""
+
+    def __init__(self, user_path: str) -> None:
+        self.user_path = user_path
+        super().__init__(
+            f"Cannot write '{user_path}': the vault configuration is read-only for the "
+            "model. It can be defined once, by overwrite or replace, while it still holds "
+            "the initial template; after that only its owner edits it."
+        )
+
+
+class ConfigRejectedError(MindyardError):
+    """Raised when a one-time definition of ``wiki.yaml`` would not be valid."""
+
+    def __init__(self, reason: str) -> None:
+        self.reason = reason
+        super().__init__(f"wiki.yaml rejected, nothing written: {reason}")
+
+
 class VersionRequiredError(MindyardError):
     """Raised when ``replace``/``overwrite`` omits the required version token."""
 

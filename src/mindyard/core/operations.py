@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import hashlib
 import threading
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import NotRequired
@@ -20,8 +21,10 @@ from typing import NotRequired
 # a schema for the write_batch ``edits`` param on Python < 3.12 as well as 3.12+.
 from typing_extensions import TypedDict
 
-from .config import WikiConfig
+from .config import BOOTSTRAP_MARKER, CONFIG_FILE, WikiConfig
 from .errors import (
+    ConfigLockedError,
+    ConfigRejectedError,
     CreateExistsError,
     EmptyBatchError,
     InvalidFileError,
@@ -266,7 +269,13 @@ def _require(entry: Operation, field_name: str, op: str) -> str:
     return value
 
 
-def _plan_ops(cfg: WikiConfig, edits: list[Operation]) -> _Plan:
+# Called with (current, proposed) wiki.yaml text; raises ConfigRejectedError.
+ConfigCheck = Callable[[str, str], None]
+
+
+def _plan_ops(
+    cfg: WikiConfig, edits: list[Operation], config_check: ConfigCheck | None = None
+) -> _Plan:
     """Simulate ``edits`` against the worktree, validating before any write.
 
     Maintains ``state`` (a path -> content | _DELETED overlay on disk) and applies
@@ -294,12 +303,24 @@ def _plan_ops(cfg: WikiConfig, edits: list[Operation]) -> _Plan:
         schema_path: "the schema is structural (edit it in place, never delete or rename)",
     }
 
+    # wiki.yaml constrains the model, so the model never edits it, with one
+    # exception: a vault still holding the blank template may be defined once,
+    # by overwrite or replace, when the caller supplies a validator. The new
+    # content must drop the marker, which locks the file again.
+    config_path = (root / CONFIG_FILE).resolve()
+    config_text = config_path.read_text(encoding="utf-8") if config_path.is_file() else ""
+    config_open = config_check is not None and BOOTSTRAP_MARKER in config_text.splitlines()
+
     state: dict[Path, str | _Deleted] = {}
     created: set[Path] = set()
 
-    def writable(user_path: str) -> Path:
+    def writable(user_path: str, op: str | None = None) -> Path:
         """Resolve under root and confine to the writable zones."""
         p = resolve_within(root, user_path)
+        if p == config_path:
+            if config_open and op in ("overwrite", "replace"):
+                return p
+            raise ConfigLockedError(user_path)
         if p.is_relative_to(wiki_root) or p.is_relative_to(raw_root) or p in mutable_root_files:
             return p
         raise WriteZoneError(user_path)
@@ -343,7 +364,7 @@ def _plan_ops(cfg: WikiConfig, edits: list[Operation]) -> _Plan:
         should not have to be regenerated over a missing backslash. What was
         changed is reported back in the result.
         """
-        if not is_raw(p):
+        if not is_raw(p) and p != config_path:
             content, n = escape_table_pipes(content)
             if n:
                 normalized.append({"path": user_path, "table_pipes": n})
@@ -368,7 +389,7 @@ def _plan_ops(cfg: WikiConfig, edits: list[Operation]) -> _Plan:
         elif op == "overwrite":
             user_path = _require(entry, "path", op)
             content = _require(entry, "content", op)
-            p = writable(user_path)
+            p = writable(user_path, op)
             if is_raw(p):
                 raise RawImmutableError(user_path)
             cur = current(p)
@@ -383,7 +404,7 @@ def _plan_ops(cfg: WikiConfig, edits: list[Operation]) -> _Plan:
             old = _require(entry, "old", op)
             new = _require(entry, "new", op)
             replace_all = bool(entry.get("replace_all", False))
-            p = writable(user_path)
+            p = writable(user_path, op)
             if is_raw(p):
                 raise RawImmutableError(user_path)
             cur = current(p)
@@ -435,6 +456,15 @@ def _plan_ops(cfg: WikiConfig, edits: list[Operation]) -> _Plan:
             created.add(dst)
             applied.append({"op": op, "path": user_path, "new_path": new_path})
 
+    proposed = state.get(config_path)
+    if isinstance(proposed, str):
+        assert config_check is not None  # writable() only opens the file with a check
+        if BOOTSTRAP_MARKER in proposed.splitlines():
+            raise ConfigRejectedError(
+                f"remove the '{BOOTSTRAP_MARKER}' line: the definition is one-time"
+            )
+        config_check(config_text, proposed)
+
     return _compile_plan(root, state, applied, normalized)
 
 
@@ -480,7 +510,11 @@ def _write_lock(root: Path) -> threading.Lock:
 
 
 def write_batch(
-    cfg: WikiConfig, edits: list[Operation], message: str, author: str | None = None
+    cfg: WikiConfig,
+    edits: list[Operation],
+    message: str,
+    author: str | None = None,
+    config_check: ConfigCheck | None = None,
 ) -> WriteResult:
     """Transactionally apply ``edits`` to the target wiki in one commit.
 
@@ -490,13 +524,14 @@ def write_batch(
     all-or-nothing. Returns ``{commit, applied}``, plus ``normalized`` when the
     server had to fix table-cell pipes on the way in (see ``escape_table_pipes``).
     ``author`` (``Name <email>``) attributes the commit to the caller; the
-    committer stays the repository's identity.
+    committer stays the repository's identity. ``config_check`` validates a
+    one-time definition of ``wiki.yaml``; without it, the file stays locked.
     """
     if not edits:
         raise EmptyBatchError()
 
     with _write_lock(cfg.root):
-        plan = _plan_ops(cfg, edits)
+        plan = _plan_ops(cfg, edits, config_check)
         start_sha = head_sha(cfg.root)
 
         try:
