@@ -1,5 +1,7 @@
 # mindyard
 
+<!-- mcp-name: io.github.floriantriclin/mindyard -->
+
 Your personal LLM wiki: a git-versioned Markdown vault, served over MCP to
 Claude.ai, Claude Desktop, Claude Code or any MCP client.
 
