@@ -155,14 +155,12 @@ section{padding:4.5rem 0;border-top:1px solid var(--line)}
 .demo-bar{display:flex;align-items:center;gap:.4rem;padding:.65rem 1rem;border-bottom:1px solid var(--line);font-size:.85rem;color:var(--muted)}
 .demo-bar span{width:.7rem;height:.7rem;border-radius:50%;background:var(--line)}
 .demo-bar b{font-weight:600;margin-left:.6rem}
-.demo-log{padding:1.4rem 1.2rem .6rem;display:flex;flex-direction:column;gap:1.1rem}
+.demo-log{padding:1.4rem 1.2rem .6rem;display:flex;flex-direction:column;gap:1.1rem;height:clamp(20rem,58vh,30rem);overflow-y:auto;overscroll-behavior:contain}
 .bubble{align-self:flex-end;max-width:85%;background:color-mix(in srgb,var(--brand) 12%,var(--surface));border-radius:16px 16px 4px 16px;padding:.6rem 1rem}
 .bubble p{margin:0}
 .turn .who{font-size:.8rem;font-weight:700;color:var(--muted);margin-bottom:.3rem}
 .turn p{margin:0 0 .6rem}
-.stream{position:relative}
-.stream .live{position:absolute;inset:0}
-.armed .stream .ghost{visibility:hidden}
+.armed .stream .ghost{display:none}
 .tool{border:1px solid var(--line);border-radius:10px;margin:0 0 .6rem;padding:0;max-width:none;background:var(--bg)}
 .tool summary{display:flex;align-items:center;gap:.5rem;padding:.5rem .75rem;cursor:pointer;font-size:.92rem;list-style:none}
 .tool summary::-webkit-details-marker{display:none}
@@ -184,9 +182,7 @@ section{padding:4.5rem 0;border-top:1px solid var(--line)}
 .composer .send{position:absolute;right:.6rem;bottom:.6rem;width:2rem;height:2rem;border-radius:50%;display:grid;place-items:center;background:var(--line);color:var(--muted);font-weight:700}
 .composer.typing .send,.composer.ready .send{background:var(--accent);color:var(--accent-ink)}
 @keyframes blink{50%{opacity:0}}
-.armed [data-step]{visibility:hidden}
-.armed [data-step].shown{visibility:visible}
-.armed [data-step].shown [data-step]:not(.shown){visibility:hidden}
+.armed [data-step]:not(.shown){display:none}
 .replay{position:absolute;top:.45rem;right:.7rem;font:600 .8rem var(--sans);background:transparent;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:.25rem .75rem;cursor:pointer}
 .step{font-size:.95rem;color:var(--muted);margin:0 0 .5rem}
 .after{margin-top:1.6rem}
@@ -523,13 +519,15 @@ for (const b of document.querySelectorAll(".copy")) {
 }
 // Session demo: types the prompts, then reveals the replies and tool calls in order.
 // Every message is in the HTML from the start (indexable, readable without JavaScript);
-// hidden steps keep their space, so nothing below the demo moves while it plays.
+// the frame has a fixed height and scrolls like a chat, so nothing below it moves.
 const demo = document.querySelector("[data-demo]");
 if (demo && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
   const steps = [...demo.querySelectorAll("[data-step]")];
   const composer = demo.querySelector(".composer");
   const typed = composer.querySelector(".typed");
   const replay = demo.querySelector(".replay");
+  const log = demo.querySelector(".demo-log");
+  const follow = () => { log.scrollTop = log.scrollHeight; };
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   let run = 0;
 
@@ -540,6 +538,7 @@ if (demo && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
     for (const t of demo.querySelectorAll(".tool")) t.open = false;
     typed.textContent = "";
     composer.className = "composer";
+    log.scrollTop = 0;
   };
 
   const play = async () => {
@@ -564,22 +563,27 @@ if (demo && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
         typed.textContent = "";
         composer.className = "composer";
         step.classList.add("shown");
+        follow();
         await sleep(700);
       } else if (kind === "tools") {
         step.classList.add("shown");
+        follow();
       } else if (kind === "tool") {
         step.classList.add("shown", "running");
+        follow();
         await sleep(1100);
         step.classList.remove("running");
         await sleep(300);
       } else {
         step.classList.add("shown");
+        follow();
         const live = step.querySelector(".live");
         if (!live) continue;
         const words = step.querySelector(".ghost").textContent.split(" ");
         for (let i = 0; i < words.length; i++) {
           if (!alive()) return;
           live.textContent = words.slice(0, i + 1).join(" ");
+          follow();
           await sleep(45 + Math.random() * 45);
         }
         await sleep(600);
@@ -595,7 +599,7 @@ if (demo && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
       obs.disconnect();
       play();
     }
-  }, { threshold: 0.35 }).observe(demo);
+  }, { threshold: 0.6 }).observe(demo);
 }
 </script>
 </body>
