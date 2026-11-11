@@ -167,6 +167,7 @@ section{padding:4.5rem 0;border-top:1px solid var(--line)}
 .tool summary::after{content:"▸";margin-left:.4rem;color:var(--muted)}
 .tool[open] summary::after{content:"▾"}
 .tool summary span{font-weight:600}
+.tool summary small{color:var(--muted);font-size:.85rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .tool summary img{border-radius:4px}
 .tool .state{margin-left:auto;width:1rem;height:1rem;border-radius:50%;display:inline-block}
 .tool .state::before{content:"✓";color:var(--link);font-style:normal;font-weight:700}
@@ -311,7 +312,7 @@ MINDYARD_DATA_ROOT=./data uvx mindyard serve</code></pre>
         <div class="card">
           <h3>Every write is one git commit</h3>
           <p>A batch of edits is validated whole, then applied in a single commit. If anything fails, nothing is written.</p>
-          <div class="term"><pre><code>d9adce2 Add marigold, a companion for the tomato bed
+          <div class="term"><pre><code>b36c63e Add marigold, a companion for the tomato bed
  4 files changed, 17 insertions(+), 1 deletion(-)</code></pre></div>
         </div>
         <div class="card">
@@ -351,28 +352,57 @@ MINDYARD_DATA_ROOT=./data uvx mindyard serve</code></pre>
         <div class="demo-bar" aria-hidden="true"><span></span><span></span><span></span><b>Chat · mindyard connected</b></div>
         <div class="demo-log">
           <div class="bubble you" data-step="send"><p>Volunteers say marigolds keep aphids off the tomatoes. Add that to the garden wiki.</p></div>
-          <div class="turn" data-step="reply">
-            <div class="who">Claude</div>
-            <p class="stream"><span class="ghost">I'll create a Marigold page, link it from Tomato, and add it to the index and the log, all in one batch. Shall I go ahead?</span><span class="live" aria-hidden="true"></span></p>
-          </div>
-          <div class="bubble you" data-step="send"><p>Go.</p></div>
-          <div class="turn" data-step="tools">
+          <div class="turn" data-step="group">
             <div class="who">Claude</div>
             <details class="tool" data-step="tool">
-              <summary><img src="/icon.svg" alt="" width="18" height="18"><span>mindyard</span><code>read_page</code><i class="state" aria-hidden="true"></i></summary>
-              <pre><code>read_page(wiki="garden", path="wiki/plants/tomato.md", raw=True)
-→ version 45ab73651af99a31</code></pre>
+              <summary><img src="/icon.svg" alt="" width="18" height="18"><span>mindyard</span><code>list_wikis</code><i class="state" aria-hidden="true"></i></summary>
+              <pre><code>list_wikis()
+→ [{"id": "garden", "label": "Garden", "description": "Plants, practices
+   and events of the Harbor Lane community garden."}]</code></pre>
             </details>
             <details class="tool" data-step="tool">
-              <summary><img src="/icon.svg" alt="" width="18" height="18"><span>mindyard</span><code>write_batch</code><i class="state" aria-hidden="true"></i></summary>
+              <summary><img src="/icon.svg" alt="" width="18" height="18"><span>mindyard</span><code>read_page</code><small>schema.md</small><i class="state" aria-hidden="true"></i></summary>
+              <pre><code>read_page(wiki="garden", path="schema.md")
+→ version de3cc0606bd87d75, 20 lines
+  ...
+  - wiki/plants/: one page per crop (entity_kind: plant).
+  - A plant's status is one of: planned, growing, harvested, retired.</code></pre>
+            </details>
+            <details class="tool" data-step="tool">
+              <summary><img src="/icon.svg" alt="" width="18" height="18"><span>mindyard</span><code>search_wiki</code><small>marigold</small><i class="state" aria-hidden="true"></i></summary>
+              <pre><code>search_wiki(wiki="garden", query="marigold")
+→ []</code></pre>
+            </details>
+            <details class="tool" data-step="tool">
+              <summary><img src="/icon.svg" alt="" width="18" height="18"><span>mindyard</span><code>read_page</code><small>tomato.md</small><i class="state" aria-hidden="true"></i></summary>
+              <pre><code>read_page(wiki="garden", path="wiki/plants/tomato.md", raw=True)
+→ version 45ab73651af99a31, 14 lines</code></pre>
+            </details>
+            <details class="tool" data-step="tool">
+              <summary><img src="/icon.svg" alt="" width="18" height="18"><span>mindyard</span><code>read_page</code><small>index.md</small><i class="state" aria-hidden="true"></i></summary>
+              <pre><code>read_page(wiki="garden", path="index.md", raw=True)
+→ version d63489e2037083f8, 11 lines</code></pre>
+            </details>
+            <details class="tool" data-step="tool">
+              <summary><img src="/icon.svg" alt="" width="18" height="18"><span>mindyard</span><code>read_page</code><small>log.md</small><i class="state" aria-hidden="true"></i></summary>
+              <pre><code>read_page(wiki="garden", path="log.md", raw=True)
+→ version 1562193c679c5233, 6 lines</code></pre>
+            </details>
+            <p class="stream" data-step="reply"><span class="ghost">There is no Marigold page yet. I'll create one as a planned plant, as the schema asks, link it from Tomato, and add it to the index and the log, all in one batch. Shall I go ahead?</span><span class="live" aria-hidden="true"></span></p>
+          </div>
+          <div class="bubble you" data-step="send"><p>Go.</p></div>
+          <div class="turn" data-step="group">
+            <div class="who">Claude</div>
+            <details class="tool" data-step="tool">
+              <summary><img src="/icon.svg" alt="" width="18" height="18"><span>mindyard</span><code>write_batch</code><small>4 edits</small><i class="state" aria-hidden="true"></i></summary>
               <pre><code>write_batch(wiki="garden", message="Add marigold, a companion for the tomato bed", edits=[
   {op: "create",  path: "wiki/plants/marigold.md", ...},
   {op: "replace", path: "wiki/plants/tomato.md", expected_version: "45ab73651af99a31", ...},
-  {op: "replace", path: "index.md", ...},
-  {op: "replace", path: "log.md", ...}])
-→ {"commit": "d9adce2", "applied": [4 ops]}</code></pre>
+  {op: "replace", path: "index.md", expected_version: "d63489e2037083f8", ...},
+  {op: "replace", path: "log.md", expected_version: "1562193c679c5233", ...}])
+→ {"commit": "b36c63e", "applied": [4 ops]}</code></pre>
             </details>
-            <p class="stream" data-step="reply"><span class="ghost">Done, in a single commit, d9adce2: a new Marigold page, a link from Tomato, and entries in the index and the log. If any of the four edits had failed, none would have been written.</span><span class="live" aria-hidden="true"></span></p>
+            <p class="stream" data-step="reply"><span class="ghost">Done, in a single commit, b36c63e: a new Marigold page, a link from Tomato, and entries in the index and the log. If any of the four edits had failed, none would have been written.</span><span class="live" aria-hidden="true"></span></p>
           </div>
         </div>
         <div class="composer" aria-hidden="true"><span class="typed"></span><span class="caret"></span><span class="placeholder">Reply…</span><span class="send">↑</span></div>
@@ -382,7 +412,7 @@ MINDYARD_DATA_ROOT=./data uvx mindyard serve</code></pre>
         <div>
           <p class="step">In your terminal, the batch is one commit:</p>
           <div class="term"><pre><code>$ git log -1 --stat
-d9adce2 Add marigold, a companion for the tomato bed
+b36c63e Add marigold, a companion for the tomato bed
  index.md                |  1 +
  log.md                  |  3 +++
  wiki/plants/marigold.md | 12 ++++++++++++
@@ -565,15 +595,15 @@ if (demo && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
         step.classList.add("shown");
         follow();
         await sleep(700);
-      } else if (kind === "tools") {
+      } else if (kind === "group") {
         step.classList.add("shown");
         follow();
       } else if (kind === "tool") {
         step.classList.add("shown", "running");
         follow();
-        await sleep(1100);
+        await sleep(650 + Math.random() * 500);
         step.classList.remove("running");
-        await sleep(300);
+        await sleep(200);
       } else {
         step.classList.add("shown");
         follow();
