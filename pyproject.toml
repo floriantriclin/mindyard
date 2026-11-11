@@ -15,6 +15,11 @@ dependencies = [
     "pyyaml>=6.0",
 ]
 
+[project.urls]
+Homepage = "https://mindyard.dev"
+Repository = "https://github.com/floriantriclin/mindyard"
+Issues = "https://github.com/floriantriclin/mindyard/issues"
+
 [project.scripts]
 mindyard = "mindyard.cli:main"
 

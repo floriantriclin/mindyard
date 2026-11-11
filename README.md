@@ -18,7 +18,7 @@ the bookkeeping that keeps the wiki trustworthy, and no model runs on it:
   your `wiki.yaml` declares (required fields, closed status lists, statuses
   implied by dates).
 
-Status: early release (0.1).
+Status: early release (0.1). Website: [mindyard.dev](https://mindyard.dev).
 
 ## Quickstart
 
