@@ -299,7 +299,7 @@ claude mcp add mindyard -e MINDYARD_DATA_ROOT=$PWD/data -- uvx mindyard serve --
         <div class="arrow" aria-hidden="true">→</div>
         <div class="card hub"><h3>mindyard</h3><p><code>list_wikis</code>, <code>read_page</code>, <code>list_pages</code>, <code>search_wiki</code>, <code>get_lint_report</code> and one write path: <code>write_batch</code>.</p></div>
         <div class="arrow" aria-hidden="true">→</div>
-        <div class="card"><h3>Your client</h3><p>Claude.ai, Claude Desktop, Claude Code or any MCP client over streamable HTTP.</p></div>
+        <div class="card"><h3>Your client</h3><p>Claude Desktop and Claude Code locally over stdio, Claude.ai and other MCP clients over HTTP.</p></div>
       </div>
     </div>
   </section>
@@ -322,7 +322,7 @@ claude mcp add mindyard -e MINDYARD_DATA_ROOT=$PWD/data -- uvx mindyard serve --
         </div>
         <div class="card">
           <h3>Write zones</h3>
-          <p>Sources in <code>raw/</code> are create-only. The index, log and schema cannot be deleted. <code>wiki.yaml</code> is read-only for the model, once a new vault is defined.</p>
+          <p>Sources in <code>raw/</code> are create-only. The index, log and schema cannot be deleted. <code>wiki.yaml</code> is read-only for the model: it may only write a new vault's first definition, once, with your agreement.</p>
           <div class="term"><pre><code><span class="err">files under raw/ are create-only</span></code></pre></div>
         </div>
         <div class="card">
@@ -331,7 +331,7 @@ claude mcp add mindyard -e MINDYARD_DATA_ROOT=$PWD/data -- uvx mindyard serve --
         </div>
         <div class="card">
           <h3>Works with Claude.ai</h3>
-          <p>Google sign-in (OAuth) for Claude.ai custom connectors, with an allowlist of accounts. Bearer tokens for Claude Code, Claude Desktop and scripts.</p>
+          <p>Google sign-in (OAuth) for Claude.ai custom connectors, with an allowlist of accounts. Bearer tokens for remote clients and scripts. Locally, Claude Desktop and Claude Code need neither.</p>
         </div>
         <div class="card">
           <h3>A deterministic linter</h3>
@@ -457,7 +457,7 @@ and retry.</span></code></pre></div>
       <p class="sub">You need Python 3.12 or later and <a href="https://docs.astral.sh/uv/">uv</a>. <code>pip install mindyard</code> works too.</p>
       <ol class="steps">
         <li>
-          <p><strong>Create a vault.</strong> Drop <code>--demo</code> for an empty one.</p>
+          <p><strong>Create a vault.</strong> Drop <code>--demo</code> for an empty one: Claude will offer to define it with you (what it is for, kinds of pages, required fields).</p>
           <div class="term"><button class="copy" type="button" data-copy="uvx mindyard init ./data/vaults/garden --demo" hidden>Copy</button><pre><code>uvx mindyard init ./data/vaults/garden --demo</code></pre></div>
         </li>
         <li>
