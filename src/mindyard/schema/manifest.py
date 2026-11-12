@@ -96,7 +96,12 @@ class EntityKind(_Strict):
             raise ValueError("status_from_dates requires a closed 'status' list")
         missing = {derived.upcoming, derived.ongoing, derived.past} - set(self.status)
         if missing:
-            raise ValueError(f"status_from_dates values not in 'status': {sorted(missing)}")
+            raise ValueError(
+                f"status_from_dates values not in 'status': {sorted(missing)}. Add them to "
+                "'status', or name the derived statuses with the words 'status' already "
+                "uses: status_from_dates: {start: ..., end: ..., upcoming: <word>, "
+                "ongoing: <word>, past: <word>}"
+            )
         return self
 
 

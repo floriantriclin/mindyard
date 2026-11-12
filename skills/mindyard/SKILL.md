@@ -31,8 +31,11 @@ server instructions, but less well.
 - Prefer `replace` over `overwrite`. `raw/` is create-only. `wiki.yaml` is
   read-only for you; propose changes to the user instead. One exception: in a
   new vault whose `wiki.yaml` still holds the `# mindyard:bootstrap` line, define
-  it with the user (purpose, kinds of pages, required fields, statuses), then
-  overwrite it once, without that line, in the same batch as `schema.md`.
+  it with the user: ask its purpose, propose a small first draft (two to four
+  kinds of pages), then overwrite it once, without that line, in the same batch
+  as `schema.md`. The owner adds kinds later by hand: start small.
+- If a batch is refused and fixing it changes the agreed plan, present the new
+  plan and wait for agreement again.
 
 ## Operations
 

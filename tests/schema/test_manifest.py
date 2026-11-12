@@ -130,3 +130,29 @@ def test_discovery_of_missing_base(tmp_path: Path) -> None:
     wikis, problems = discover_wikis(tmp_path / "absent")
     assert wikis == {}
     assert problems and "not a directory" in problems[0]
+
+
+def test_statuses_implied_by_dates_can_use_your_own_words(tmp_path: Path) -> None:
+    root = tmp_path / "talks"
+    root.mkdir()
+    (root / "wiki.yaml").write_text(
+        "mindyard: 1\nlabel: Talks\nentities:\n  talk:\n    status: [soon, live, done]\n"
+        "    status_from_dates: {start: date, end: null, upcoming: soon, ongoing: live, "
+        "past: done}\n",
+        encoding="utf-8",
+    )
+    derived = load_manifest(root).entities["talk"].status_from_dates
+    assert derived is not None
+    assert (derived.upcoming, derived.ongoing, derived.past) == ("soon", "live", "done")
+
+
+def test_a_status_mismatch_says_how_to_name_derived_statuses(tmp_path: Path) -> None:
+    root = tmp_path / "talks"
+    root.mkdir()
+    (root / "wiki.yaml").write_text(
+        "mindyard: 1\nlabel: Talks\nentities:\n  talk:\n    status: [soon, live, done]\n"
+        "    status_from_dates: {start: date}\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ManifestError, match="upcoming: <word>"):
+        load_manifest(root)

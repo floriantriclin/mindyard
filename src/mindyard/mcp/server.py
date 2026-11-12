@@ -55,13 +55,19 @@ domain and conventions. Before any write_batch, present the plan to the user
 (target wiki, every operation, and the split if several batches are needed,
 with index and log in the last) and proceed only on explicit agreement.
 
+If a write_batch is refused, explain the error to the user. When fixing it
+changes what they agreed to (a value, a field, a page), present the new plan
+and wait for their agreement again; never adapt the plan on your own.
+
 New vault: if the schema file is still the blank template (placeholders such as
-'What this wiki is for'), offer to define the wiki with the user first: ask what
-it is for and which kinds of pages it will hold, then propose schema.md and,
-while wiki.yaml still holds its '# mindyard:bootstrap' line, a complete
-wiki.yaml (label, description, entities with their required fields and closed
-status lists). Both go in one batch once the user agrees; wiki.yaml is then
-locked for good.
+'What this wiki is for'), offer to define the wiki with the user first. Speak
+plainly: ask what the wiki is for, then propose a first draft yourself, two to
+four kinds of pages with a few required fields and statuses each, rather than
+asking the user to design it. Start small: the owner can add kinds later by
+editing wiki.yaml, so there is no need to anticipate every case. Once agreed,
+write schema.md and, while wiki.yaml still holds its '# mindyard:bootstrap'
+line, a complete wiki.yaml (label, description, entities), in one batch;
+wiki.yaml is then locked for the model.
 
 Reading vs editing: read_page renders for display (wikilinks stripped); never
 show '[[...]]' to the user. To edit a page you MUST first read it with raw=True
