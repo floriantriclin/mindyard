@@ -60,7 +60,7 @@
     {"@type": "Question", "name": "Which clients work with mindyard?",
      "acceptedAnswer": {"@type": "Answer", "text": "Any MCP client: Claude Desktop and Claude Code launch it locally over stdio, Claude.ai reaches a deployed server through a custom connector with Google sign-in, and remote clients use a bearer token over streamable HTTP."}},
     {"@type": "Question", "name": "What does it cost?",
-     "acceptedAnswer": {"@type": "Answer", "text": "Nothing. mindyard is free software under the AGPL-3.0, free to self-host. A hosted version is being considered for people who would rather not run a server."}}
+     "acceptedAnswer": {"@type": "Answer", "text": "Nothing. mindyard is free software under the AGPL-3.0, free to self-host. A hosted version, in the European Union, is being considered for people who would rather not run a server."}}
   ]
 }
 </script>
@@ -275,7 +275,7 @@ claude mcp add mindyard -e MINDYARD_DATA_ROOT=$PWD/data -- uvx mindyard serve --
       <a class="btn btn-accent" href="#quickstart">Get started</a>
       <a class="btn btn-ghost" href="https://github.com/floriantriclin/mindyard"><svg viewBox="0 0 16 16" aria-hidden="true" fill="currentColor"><path d="M8 .25a.75.75 0 01.673.418l1.882 3.815 4.21.612a.75.75 0 01.416 1.279l-3.046 2.97.719 4.192a.75.75 0 01-1.088.791L8 12.347l-3.766 1.98a.75.75 0 01-1.088-.79l.72-4.194L.818 6.374a.75.75 0 01.416-1.28l4.21-.611L7.327.668A.75.75 0 018 .25z"/></svg>Star on GitHub</a>
     </div>
-    <p class="hosted-link">Rather not run a server? <a href="#hosted">A hosted version is in the works.</a></p>
+    <p class="hosted-link">Rather not run a server? <a href="#hosted">A hosted version in the EU is being considered.</a></p>
   </div>
 
   <section id="why" aria-labelledby="why-h">
@@ -478,8 +478,8 @@ and retry.</span></code></pre></div>
   <section id="hosted" aria-labelledby="hosted-h">
     <div class="wrap">
       <div class="hosted">
-        <h2 id="hosted-h">Don't want to run a server?</h2>
-        <p>A hosted mindyard is being considered: your wiki, connected to Claude.ai in a minute, with no server to keep. If you would use it, tell us, and what it would be worth to you.</p>
+        <h2 id="hosted-h">A hosted mindyard, in the EU?</h2>
+        <p>We are considering a hosted mindyard for people who would rather not run a server and want to know where their notes live: hosted in the European Union by an identified operator, every change recorded in git, and your wiki always yours to take away as a repository you can clone. If you would use it, tell us, and what it would be worth to you.</p>
         <form class="wl" method="post" action="/api/waitlist">
           <div class="field">
             <label for="wl-email">Email</label>
@@ -515,7 +515,7 @@ and retry.</span></code></pre></div>
       <details><summary>Is it compatible with Obsidian?</summary><p>Yes. A vault is plain Markdown with <code>[[wikilinks]]</code> and YAML frontmatter. Open it in Obsidian or any editor; edits made there are protected by the same version check as the model's.</p></details>
       <details><summary>Which clients work with mindyard?</summary><p>Any MCP client: Claude Desktop and Claude Code launch it locally over stdio, Claude.ai reaches a deployed server through a custom connector with Google sign-in, and remote clients use a bearer token over streamable HTTP.</p></details>
       <details><summary>Can I keep several wikis?</summary><p>Yes. Every directory under <code>vaults/</code> holding a <code>wiki.yaml</code> is served as its own wiki, and the model picks one per operation.</p></details>
-      <details><summary>What does it cost?</summary><p>Nothing. mindyard is free software under the AGPL-3.0, free to self-host. A hosted version is being considered for people who would rather not run a server.</p></details>
+      <details><summary>What does it cost?</summary><p>Nothing. mindyard is free software under the AGPL-3.0, free to self-host. A hosted version, in the European Union, is being considered for people who would rather not run a server.</p></details>
     </div>
   </section>
 </main>
