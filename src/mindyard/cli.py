@@ -4,8 +4,10 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import os
 import sys
+import warnings
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -128,6 +130,12 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    # A dependency of FastMCP's OAuth support announces a future change on import;
+    # it says nothing about mindyard and alarms people reading the server log.
+    # authlib installs an "always" filter when loaded, so load it first.
+    with contextlib.suppress(ImportError):
+        import authlib.deprecate  # type: ignore[import-untyped]  # noqa: F401
+    warnings.filterwarnings("ignore", message="The httpx module is deprecated")
     args = build_parser().parse_args(argv)
     code: int = args.func(args)
     return code

@@ -25,6 +25,10 @@ Status: early release (0.1). Website: [mindyard.dev](https://mindyard.dev).
 
 ## Quickstart
 
+You need [uv](https://docs.astral.sh/uv/) (it fetches Python 3.12 if needed) and
+**git**: every write is a commit. On Windows, install Git for Windows from
+[git-scm.com](https://git-scm.com/download/win) first; macOS and Linux usually ship it.
+
 ```bash
 uv tool install mindyard        # or prefix each command with `uvx`, or `pip install mindyard`
 mindyard init ./data/vaults/garden --demo
@@ -47,6 +51,10 @@ vaults of the user who runs it. Claude Desktop takes the same command in
   }
 }
 ```
+
+If the same account also has a remote mindyard connector, give the two servers
+distinct names (here `mindyard` and, say, `mindyard-cloud`) and keep one of them off
+while testing the other: they expose the same tools, and the model may pick either.
 
 Over HTTP instead, `MINDYARD_DATA_ROOT=./data mindyard serve` listens on
 `http://127.0.0.1:8787/mcp`, without auth and on loopback only; authentication

@@ -47,7 +47,19 @@ def _search_ripgrep(
         args.append("--fixed-strings")
     args += ["--", query, *subdirs]
 
-    proc = subprocess.run(args, cwd=str(root), capture_output=True, text=True)
+    try:
+        # No stdin: over stdio the server's stdin is the MCP channel, and rg with a
+        # piped stdin could read it. Bounded, like every subprocess here.
+        proc = subprocess.run(
+            args,
+            cwd=str(root),
+            capture_output=True,
+            text=True,
+            stdin=subprocess.DEVNULL,
+            timeout=60,
+        )
+    except subprocess.TimeoutExpired:
+        return _search_python(root, subdirs, query, max_results, regex)
     # rg exit codes: 0 = matches, 1 = no matches (not an error here), 2 = error
     # (e.g. an invalid regex when regex=True).
     if proc.returncode == 2:

@@ -939,3 +939,19 @@ def test_concurrent_batches_on_one_wiki_are_serialised(
 
     assert len(set(commits)) == 16
     assert _commit_count(root) == before + 16
+
+
+def test_a_git_call_that_hangs_fails_the_batch_and_rolls_back(
+    wikis: WikiSet, git_wiki_roots: dict[str, Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A git that waits (a signing prompt, a locked file) must not hang the server."""
+    root = git_wiki_roots["alpha"]
+    hook = root / ".git" / "hooks" / "pre-commit"
+    hook.write_text("#!/bin/sh\nsleep 10\n", encoding="utf-8")
+    hook.chmod(0o755)
+    monkeypatch.setattr("mindyard.core.git.GIT_TIMEOUT_SECONDS", 1)
+    with pytest.raises(GitError, match="did not finish"):
+        operations.write_batch(
+            wikis["alpha"], [Operation(op="create", path="wiki/slow.md", content="x")], "slow"
+        )
+    assert not (root / "wiki" / "slow.md").exists()

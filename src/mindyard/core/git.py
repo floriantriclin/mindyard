@@ -12,19 +12,40 @@ targeted removal of newly created (untracked) files, see ``rollback``.
 
 from __future__ import annotations
 
+import os
 import subprocess
 from pathlib import Path
 
 from .errors import GitError
 
+# git must never wait for a person. Over stdio the server's stdin is the MCP
+# channel, so a prompt (a locked file on Windows, a passphrase, credentials)
+# would read from it or hang the batch forever: give it no stdin, forbid
+# terminal prompts, and bound every call.
+GIT_TIMEOUT_SECONDS = 120
+_NO_PROMPTS = {"GIT_TERMINAL_PROMPT": "0", "GCM_INTERACTIVE": "never"}
+
+
+def _git(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    try:
+        return subprocess.run(
+            ["git", "-C", str(root), *args],
+            capture_output=True,
+            text=True,
+            stdin=subprocess.DEVNULL,
+            env={**os.environ, **_NO_PROMPTS},  # read at each call, not at import
+            timeout=GIT_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired:
+        raise GitError(
+            f"git {args[0]} did not finish within {GIT_TIMEOUT_SECONDS} s: it may be waiting "
+            "for input (commit signing, a file locked by another program)"
+        ) from None
+
 
 def _run(root: Path, *args: str) -> str:
     """Run ``git -C <root> <args>`` and return stdout, or raise ``GitError``."""
-    proc = subprocess.run(
-        ["git", "-C", str(root), *args],
-        capture_output=True,
-        text=True,
-    )
+    proc = _git(root, *args)
     if proc.returncode != 0:
         raise GitError(f"git {' '.join(args)} failed: {proc.stderr.strip() or proc.stdout.strip()}")
     return proc.stdout.strip()
@@ -64,9 +85,7 @@ def _fallback_identity(root: Path) -> list[str]:
     always wins; a bare container or a fresh machine must still be able to
     commit rather than fail every write.
     """
-    probe = subprocess.run(
-        ["git", "-C", str(root), "config", "user.email"], capture_output=True, text=True
-    )
+    probe = _git(root, "config", "user.email")
     if probe.returncode == 0 and probe.stdout.strip():
         return []
     return ["-c", f"user.name={FALLBACK_NAME}", "-c", f"user.email={FALLBACK_EMAIL}"]
